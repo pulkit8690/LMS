@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, User, Book, BorrowedBook
+from models import db, User, Book, BorrowedBook  # ✅ Removed `backend.`
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 
@@ -39,14 +39,14 @@ def borrow_book(book_id):
 
     # ✅ Check for unpaid fines
     pending_fines = db.session.query(
-    db.session.query(BorrowedBook).filter(
-        BorrowedBook.user_id == user_id,
-        BorrowedBook.fine_amount > 0,
-        BorrowedBook.fine_paid.is_(False)
-    ).exists()
-).scalar()
+        db.session.query(BorrowedBook).filter(
+            BorrowedBook.user_id == user_id,
+            BorrowedBook.fine_amount > 0,
+            BorrowedBook.fine_paid.is_(False)
+        ).exists()
+    ).scalar()
 
-    if pending_fines > 0:
+    if pending_fines:
         return jsonify({"error": "You have unpaid fines. Pay them before borrowing another book."}), 403
 
     # ✅ Borrow limit check (Max 3 books per student)

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
 from sqlalchemy import func
-from models import db, User, Book, BorrowedBook, ReservedBook
+from models import db, User, Book, BorrowedBook, ReservedBook  # ✅ Removed backend.
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint("admin", __name__)
@@ -24,9 +24,17 @@ def admin_required(fn):
 @admin_required
 def get_books():
     books = Book.query.all()
-    books_list = [{"id": book.id, "title": book.title, "author": book.author, "isbn": book.isbn, 
-                   "category_id": book.category_id, "copies_available": book.copies_available} 
-                  for book in books]
+    books_list = [
+        {
+            "id": book.id,
+            "title": book.title,
+            "author": book.author,
+            "isbn": book.isbn,
+            "category_id": book.category_id,
+            "copies_available": book.copies_available
+        } 
+        for book in books
+    ]
     return jsonify(books_list), 200
 
 # ✅ Add a Book (Prevent Duplicate ISBN)
@@ -47,7 +55,10 @@ def add_book():
     if existing_book:
         return jsonify({"error": "Book with this ISBN already exists"}), 400
 
-    new_book = Book(title=title, author=author, isbn=isbn, category_id=category_id, copies_available=copies_available)
+    new_book = Book(
+        title=title, author=author, isbn=isbn, 
+        category_id=category_id, copies_available=copies_available
+    )
     db.session.add(new_book)
     db.session.commit()
 
@@ -93,7 +104,15 @@ def delete_book(book_id):
 @admin_required
 def get_students():
     students = User.query.filter_by(role="user").all()
-    students_list = [{"id": student.id, "name": student.name, "email": student.email, "status": "Blocked" if student.is_blocked else "Active"} for student in students]
+    students_list = [
+        {
+            "id": student.id,
+            "name": student.name,
+            "email": student.email,
+            "status": "Blocked" if student.is_blocked else "Active"
+        } 
+        for student in students
+    ]
     return jsonify(students_list), 200
 
 # ✅ Block/Unblock Student
@@ -127,7 +146,10 @@ def issue_book():
         return jsonify({"error": "Book not available"}), 400
 
     due_date = datetime.utcnow() + timedelta(days=14)  # 2-week borrow period
-    new_borrow = BorrowedBook(user_id=student.id, book_id=book.id, due_date=due_date, returned=False)
+    new_borrow = BorrowedBook(
+        user_id=student.id, book_id=book.id, 
+        due_date=due_date, returned=False
+    )
 
     book.copies_available -= 1
     db.session.add(new_borrow)
@@ -162,7 +184,16 @@ def accept_return():
 def view_borrowed_books():
     borrowed_books = BorrowedBook.query.filter_by(returned=False).all()
 
-    books_list = [{"student_id": book.user.id, "student_name": book.user.name, "book_id": book.book.id, "book_title": book.book.title, "due_date": book.due_date.strftime("%Y-%m-%d")} for book in borrowed_books]
+    books_list = [
+        {
+            "student_id": book.user.id,
+            "student_name": book.user.name,
+            "book_id": book.book.id,
+            "book_title": book.book.title,
+            "due_date": book.due_date.strftime("%Y-%m-%d")
+        } 
+        for book in borrowed_books
+    ]
 
     return jsonify(books_list), 200
 

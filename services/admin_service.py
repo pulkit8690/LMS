@@ -1,7 +1,7 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token
 from datetime import timedelta, datetime
-from backend.models import User, db, Book, BorrowedBook, ReservedBook
+from models import User, db, Book, BorrowedBook, ReservedBook  # ✅ Removed `backend.`
 from sqlalchemy.exc import SQLAlchemyError
 
 

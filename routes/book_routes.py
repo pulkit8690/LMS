@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
-from models import db, Book, Category, User, BorrowedBook, ReservedBook
+from models import db, Book, Category, User, BorrowedBook, ReservedBook  # ✅ Removed `backend.`
 from flask_socketio import emit
-from app import socketio  # Import WebSocket instance
+from app import socketio  # ✅ Ensure correct WebSocket import
 from datetime import datetime
 
 book_bp = Blueprint("books", __name__)
@@ -20,7 +20,6 @@ def admin_required(fn):
             return jsonify({"error": "Admin access required"}), 403
         return fn(*args, **kwargs)
     return wrapper
-
 
 # ✅ Add Category (Admin Only)
 @book_bp.route("/category/add", methods=["POST"])
@@ -42,7 +41,6 @@ def add_category():
     db.session.commit()
 
     return jsonify({"message": "Category added successfully", "id": new_category.id}), 201
-
 
 # ✅ Add Book (Admin Only)
 @book_bp.route("/add", methods=["POST"])
@@ -83,7 +81,6 @@ def add_book():
         traceback.print_exc()  # ✅ Print full error details in Flask logs
         return jsonify({"error": str(e)}), 500  # ✅ Ensures JSON response
 
-
 # ✅ View All Books
 @book_bp.route("/", methods=["GET"])
 def get_books():
@@ -102,7 +99,6 @@ def get_books():
         for book in books
     ]
     return jsonify(books_list), 200
-
 
 # ✅ Get Books by Category
 @book_bp.route("/category/<int:category_id>", methods=["GET"])
@@ -124,7 +120,6 @@ def get_books_by_category(category_id):
         for book in books
     ]
     return jsonify({"category": category.name, "books": books_list}), 200
-
 
 # ✅ Update a Book (Admin Only)
 @book_bp.route("/update/<int:book_id>", methods=["PUT"])
@@ -148,12 +143,12 @@ def update_book(book_id):
 
     db.session.commit()
 
-    # 🔥 Fixed `emit()` method (removed `broadcast=True`)
-    socketio.emit("book_update", {"message": f"Book updated: {book.title}"}, to="all")
+    # 🔥 Emit WebSocket event
+    socketio.emit("book_update", {"message": f"Book updated: {book.title}"})
 
     return jsonify({"message": "Book updated successfully"}), 200
 
-
+# ✅ Delete a Book (Admin Only)
 @book_bp.route("/delete/<int:book_id>", methods=["DELETE"])
 @admin_required
 def delete_book(book_id):
@@ -169,12 +164,10 @@ def delete_book(book_id):
     db.session.delete(book)
     db.session.commit()
 
-    # 🔥 Emit update (removed `broadcast=True`)
-    socketio.emit("book_update", {"message": f"Book deleted: {book.title}"}, to="all")
+    # 🔥 Emit WebSocket event
+    socketio.emit("book_update", {"message": f"Book deleted: {book.title}"})
 
     return jsonify({"message": "Book deleted successfully"}), 200
-
-
 
 # ✅ Borrow Book
 @book_bp.route("/borrow", methods=["POST"])
@@ -199,7 +192,6 @@ def borrow_book():
 
     return jsonify({"message": "Book borrowed successfully"}), 200
 
-
 # ✅ Return Book
 @book_bp.route("/return", methods=["POST"])
 @jwt_required()
@@ -223,7 +215,6 @@ def return_book():
     db.session.commit()
 
     return jsonify({"message": "Book returned successfully"}), 200
-
 
 # ✅ Reserve Book
 @book_bp.route("/reserve", methods=["POST"])

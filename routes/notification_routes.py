@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
-from services.notification_service import NotificationService
-from tasks import send_due_date_reminders_task, send_fine_reminders_task
+from services.notification_service import NotificationService  # ✅ Removed `backend.`
+from tasks import send_due_date_reminders_task, send_fine_reminders_task  # ✅ Removed `backend.`
 
 notification_bp = Blueprint("notification", __name__)
 

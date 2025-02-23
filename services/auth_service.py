@@ -1,7 +1,8 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token
 from datetime import timedelta
-from backend.models import User, db
+from models import User, db  # ✅ Removed `backend.`
+from flask import jsonify
 
 def register_user(name, email, password, role="user"):
     """Registers a new user in the system."""
@@ -18,9 +19,6 @@ def register_user(name, email, password, role="user"):
     db.session.commit()
     return {"message": "User registered successfully"}, 201
 
-from flask_jwt_extended import create_access_token, create_refresh_token
-from flask import jsonify
-
 def authenticate_user(email, password):
     """Authenticates a user and generates an access token."""
     user = User.query.filter_by(email=email).first()
@@ -35,7 +33,6 @@ def authenticate_user(email, password):
     refresh_token = create_refresh_token(identity={"id": user.id, "role": user.role})
     
     return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
-
 
 def get_user_profile(user_id):
     """Fetches user profile details."""

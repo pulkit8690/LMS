@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from services.payment_service import PaymentService
+from services.payment_service import PaymentService  # ✅ Removed `backend.`
 
 payment_bp = Blueprint("payment", __name__)
 
