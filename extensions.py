@@ -1,3 +1,4 @@
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail
 from flask_migrate import Migrate
@@ -11,5 +12,8 @@ db = SQLAlchemy()
 mail = Mail()
 migrate = Migrate()
 socketio = SocketIO(cors_allowed_origins="*")
-limiter = Limiter(key_func=get_remote_address, storage_uri="redis://localhost:6379")
 jwt = JWTManager()
+
+# ✅ Dynamically set Rate Limiting Storage (Memory if Redis is unavailable)
+REDIS_URL = os.getenv("REDIS_URL", "memory://")  # ✅ Uses Redis if available, otherwise memory
+limiter = Limiter(key_func=get_remote_address, storage_uri=REDIS_URL)
