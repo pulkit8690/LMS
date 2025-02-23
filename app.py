@@ -1,10 +1,10 @@
 import logging
 from flask import Flask, jsonify
 from config import Config
-from extensions import db, mail, migrate, socketio, limiter, jwt  # ✅ Import extensions
+from extensions import db, mail, migrate, socketio, limiter, jwt
 from flask_cors import CORS
-from celery_config import celery, init_celery  # ✅ Import Celery properly
-from routes import register_routes  # ✅ Import routes after extensions are set up
+from celery_config import celery, init_celery
+from routes import register_routes
 
 # ✅ Enable Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -25,7 +25,7 @@ def create_app():
     # ✅ Fix CORS to Work with Frontend
     CORS(app, supports_credentials=True, 
          resources={r"/*": {"origins": "*"}}, 
-         expose_headers=["Authorization", "Content-Type"])  # ✅ Allow frontend to read headers
+         expose_headers=["Authorization", "Content-Type"])
 
     # ✅ Initialize Celery
     init_celery(app)
@@ -50,7 +50,3 @@ def create_app():
         return jsonify({"message": "Welcome to Library Management System API!"})
 
     return app
-
-if __name__ == "__main__":
-    app = create_app()
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)  # ✅ Required for Flask-SocketIO in Development Mode
