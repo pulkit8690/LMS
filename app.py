@@ -3,14 +3,11 @@ from flask import Flask, jsonify
 from config import Config
 from extensions import db, mail, migrate, socketio, limiter, jwt  # ✅ Import extensions
 from flask_cors import CORS
-from celery import Celery
-from routes import register_routes  # ✅ Removed `backend.`
+from celery_config import celery, init_celery  # ✅ Import Celery properly
+from routes import register_routes  # ✅ Import routes after extensions are set up
 
 # ✅ Enable Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
-# ✅ Initialize Celery
-celery = Celery(__name__, broker=Config.CELERY_BROKER_URL, backend=Config.CELERY_RESULT_BACKEND)
 
 def create_app():
     """Creates and configures the Flask application."""
@@ -29,9 +26,9 @@ def create_app():
     CORS(app, supports_credentials=True, 
          resources={r"/*": {"origins": "*"}}, 
          expose_headers=["Authorization", "Content-Type"])  # ✅ Allow frontend to read headers
-    
-    # ✅ Initialize Celery with Flask Context
-    celery.conf.update(app.config)
+
+    # ✅ Initialize Celery
+    init_celery(app)
 
     # ✅ Import & Register Routes AFTER Extensions
     register_routes(app)
