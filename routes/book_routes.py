@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
-from backend.models import db, Book, Category, User, BorrowedBook, ReservedBook
+from models import db, Book, Category, User, BorrowedBook, ReservedBook
 from flask_socketio import emit
-from backend.app import socketio  # Import WebSocket instance
+from app import socketio  # Import WebSocket instance
 from datetime import datetime
 
 book_bp = Blueprint("books", __name__)

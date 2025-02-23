@@ -1,10 +1,10 @@
-from backend.routes.auth_routes import auth_bp
-from backend.routes.book_routes import book_bp
-from backend.routes.admin_routes import admin_bp
-from backend.routes.student_routes import student_bp
-from backend.routes.reservation_routes import reservation_bp
-from backend.routes.payment_routes import payment_bp
-from backend.routes.notification_routes import notification_bp
+from routes.auth_routes import auth_bp
+from routes.book_routes import book_bp
+from routes.admin_routes import admin_bp
+from routes.student_routes import student_bp
+from routes.reservation_routes import reservation_bp
+from routes.payment_routes import payment_bp
+from routes.notification_routes import notification_bp
 
 
 def register_routes(app):

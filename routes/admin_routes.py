@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
 from sqlalchemy import func
-from backend.models import db, User, Book, BorrowedBook, ReservedBook
+from models import db, User, Book, BorrowedBook, ReservedBook
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint("admin", __name__)

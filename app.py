@@ -1,7 +1,7 @@
 import logging
 from flask import Flask, jsonify
-from backend.config import Config
-from backend.database import db, init_db
+from config import Config
+from database import db, init_db
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -10,6 +10,7 @@ from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from celery import Celery
+from routes import register_routes
 
 # ✅ Initialize Flask Extensions
 mail = Mail()
@@ -53,7 +54,6 @@ def create_app():
         return jsonify({"error": "Resource not found"}), 404
 
     # ✅ Import & Register Routes AFTER Extensions
-    from backend.routes import register_routes
     register_routes(app)
 
     # ✅ Home Route

@@ -5,7 +5,7 @@ from flask_jwt_extended import create_access_token, create_refresh_token, jwt_re
 from datetime import timedelta,datetime
 from backend.models import User, db, UserOTP
 from flask_mail import Message
-from backend.app import mail  # Ensure correct mail import
+from app import mail  # Ensure correct mail import
 
 auth_bp = Blueprint("auth", __name__)
 

@@ -1,5 +1,5 @@
-from backend.services.notification_service import NotificationService
-from backend.app import celery
+from services.notification_service import NotificationService
+from app import celery
 
 @celery.task
 def send_due_date_reminders_task():

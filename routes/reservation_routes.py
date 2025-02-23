@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from backend.services.reservation_service import ReservationService
+from services.reservation_service import ReservationService
 
 reservation_bp = Blueprint("reservation", __name__)
 
