@@ -6,10 +6,11 @@ celery = Celery(__name__, broker=Config.CELERY_BROKER_URL, backend=Config.CELERY
 def init_celery(app):
     """Initialize Celery with Flask application context."""
     celery.conf.update(app.config)
-    celery.Task = ContextTask(app)
 
-class ContextTask(celery.Task):
-    """Ensure Celery runs within Flask's app context."""
-    def __call__(self, *args, **kwargs):
-        with self.app.app_context():
-            return self.run(*args, **kwargs)
+    class ContextTask(celery.Task):
+        """Ensures Celery tasks run within Flask's app context."""
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask  # ✅ Properly assign Celery Task
