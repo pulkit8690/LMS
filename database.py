@@ -9,11 +9,9 @@ def init_db(app):
 
     try:
         with app.app_context():
-            # ✅ Ensure tables are created if migrations were not applied
-            if not db.engine.table_names():  
+            if not db.engine.table_names():
                 db.create_all()
                 print("✅ Tables created successfully (Render Fix)")
-                
     except Exception as e:
         logging.error(f"❌ Database initialization failed: {e}")
 

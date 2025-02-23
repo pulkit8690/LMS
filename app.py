@@ -4,7 +4,7 @@ from config import Config
 from extensions import db, mail, migrate, socketio, limiter, jwt  # ✅ Import SQLAlchemy `db`
 from flask_cors import CORS
 from celery_config import celery, init_celery
-from routes import register_routes  # ✅ Import routes AFTER extensions
+from routes import register_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -13,7 +13,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # ✅ Initialize Extensions before importing models
+    # ✅ Initialize Extensions before using SQLAlchemy
     db.init_app(app)  # ✅ Ensure this is called before using `db`
     migrate.init_app(app, db)
     mail.init_app(app)
@@ -25,12 +25,13 @@ def create_app():
          resources={r"/*": {"origins": "*"}}, 
          expose_headers=["Authorization", "Content-Type"])
 
-    # ✅ Initialize Celery (if Redis is enabled)
+    # ✅ Initialize Celery (only if Redis is enabled)
     if celery:
         init_celery(app)
 
     # ✅ Import routes AFTER initializing extensions
-    register_routes(app)
+    with app.app_context():
+        register_routes(app)
 
     @app.errorhandler(400)
     def bad_request(error):
