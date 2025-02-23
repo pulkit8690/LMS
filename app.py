@@ -1,7 +1,7 @@
 import logging
 from flask import Flask, jsonify
 from config import Config
-from database import db, init_db
+from database import db, init_db  # ✅ Removed `backend.`
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -10,7 +10,7 @@ from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from celery import Celery
-from routes import register_routes
+from routes import register_routes  # ✅ Removed `backend.`
 
 # ✅ Initialize Flask Extensions
 mail = Mail()
@@ -25,6 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 celery = Celery(__name__, broker=Config.CELERY_BROKER_URL, backend=Config.CELERY_RESULT_BACKEND)
 
 def create_app():
+    """Creates and configures the Flask application."""
     app = Flask(__name__)
     app.config.from_object(Config)
 

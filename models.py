@@ -87,7 +87,16 @@ class BorrowedBook(db.Model):
     return_date = db.Column(db.DateTime, nullable=True)  # ✅ Stores actual return date if returned
     fine_amount = db.Column(db.Float, default=0.0)  # ✅ Fine (if any)
     fine_paid = db.Column(db.Boolean, default=False)  # ✅ If fine was paid
-def __repr__(self):
+
+    def calculate_fine(self):
+        """Calculate fine based on return date."""
+        fine_per_day = 5  # ₹5 per day fine
+        if self.return_date and self.return_date > self.due_date:
+            self.fine_amount = max(0, (self.return_date - self.due_date).days * fine_per_day)
+        else:
+            self.fine_amount = 0
+
+    def __repr__(self):
         return f"<BorrowedBook User: {self.user_id}, Book: {self.book_id}, Due: {self.due_date}, Returned: {self.returned}>"
 
 class ReservedBook(db.Model):
@@ -106,16 +115,6 @@ class ReservedBook(db.Model):
     def __repr__(self):
         return f"<ReservedBook User: {self.user_id}, Book: {self.book_id}, Status: {self.status}>"
 
-
-    def calculate_fine(self):
-        """Calculate fine based on return date."""
-        fine_per_day = 5  # ₹5 per day fine
-        if self.return_date and self.return_date > self.due_date:
-            self.fine_amount = max(0, (self.return_date - self.due_date).days * fine_per_day)
-        else:
-            self.fine_amount = 0
-
-    
 class PaymentRecord(db.Model):
     """Tracks fine payments for students."""
     __tablename__ = "payment_records"
@@ -147,5 +146,3 @@ class NotificationLog(db.Model):
 
     def __repr__(self):
         return f"<NotificationLog User: {self.user_id}, Type: {self.notification_type}, Sent: {self.sent_at}>"
-
-
