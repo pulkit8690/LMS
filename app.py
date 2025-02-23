@@ -1,22 +1,10 @@
 import logging
 from flask import Flask, jsonify
 from config import Config
-from database import db, init_db  # ✅ Removed `backend.`
-from flask_migrate import Migrate
+from extensions import db, mail, migrate, socketio, limiter, jwt  # ✅ Import extensions
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from flask_mail import Mail
-from flask_socketio import SocketIO
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from celery import Celery
 from routes import register_routes  # ✅ Removed `backend.`
-
-# ✅ Initialize Flask Extensions
-mail = Mail()
-migrate = Migrate()
-socketio = SocketIO(cors_allowed_origins="*")  # ✅ WebSocket CORS Handling
-limiter = Limiter(key_func=get_remote_address, storage_uri="redis://localhost:6379")
 
 # ✅ Enable Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -30,13 +18,13 @@ def create_app():
     app.config.from_object(Config)
 
     # ✅ Initialize Extensions
-    init_db(app)
+    db.init_app(app)
     migrate.init_app(app, db)
-    jwt = JWTManager(app)  # ✅ Initialize JWT
     mail.init_app(app)
     socketio.init_app(app)
     limiter.init_app(app)
-    
+    jwt.init_app(app)
+
     # ✅ Fix CORS to Work with Frontend
     CORS(app, supports_credentials=True, 
          resources={r"/*": {"origins": "*"}}, 
@@ -44,6 +32,9 @@ def create_app():
     
     # ✅ Initialize Celery with Flask Context
     celery.conf.update(app.config)
+
+    # ✅ Import & Register Routes AFTER Extensions
+    register_routes(app)
 
     # ✅ Handle JSON Errors Gracefully
     @app.errorhandler(400)
@@ -53,9 +44,6 @@ def create_app():
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({"error": "Resource not found"}), 404
-
-    # ✅ Import & Register Routes AFTER Extensions
-    register_routes(app)
 
     # ✅ Home Route
     @app.route("/")
