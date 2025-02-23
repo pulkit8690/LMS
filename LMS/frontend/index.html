@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/main.js" defer></script> <!-- ✅ Ensure JavaScript Loads -->
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-10 rounded-lg shadow-md text-center">
+        <h1 class="text-3xl font-bold text-gray-800">📚 Welcome to Library Management System</h1>
+        <p class="text-gray-600 mt-2">Please select your role:</p>
+
+        <div class="mt-6 flex flex-col space-y-4">
+            <!-- Student Options -->
+            <button id="studentAction" class="bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600">👤 Loading...</button>
+            
+            <!-- Admin Login -->
+            <a href="login.html" class="bg-green-500 text-white px-6 py-3 rounded-md hover:bg-green-600">🛠 Admin Login</a>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+</html>

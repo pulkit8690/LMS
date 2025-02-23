@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Borrowed Books - LMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/main.js" defer></script>
+
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-5xl mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4">📜 My Borrowed Books</h2>
+
+        <div class="bg-white p-4 rounded shadow">
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-blue-500 text-white">
+                        <th class="p-2">Title</th>
+                        <th class="p-2">Due Date</th>
+                        <th class="p-2">Fine</th>
+                        <th class="p-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="borrowedList" class="bg-white">
+                    <!-- Borrowed books will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="js/borrowed_books.js"></script>
+</body>
+</html>

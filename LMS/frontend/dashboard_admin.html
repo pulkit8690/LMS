@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - LMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/main.js" defer></script>
+
+</head>
+<body class="bg-gray-100">
+    <div class="flex">
+        <!-- Sidebar -->
+        <div class="w-64 bg-blue-900 h-screen text-white p-5">
+            <h2 class="text-xl font-bold mb-6">Admin Panel</h2>
+            <ul>
+                <li class="mb-4"><a href="books.html" class="hover:underline">📚 Manage Books</a></li>
+                <li class="mb-4"><a href="reservations.html" class="hover:underline">📜 Reservations</a></li>
+                <li class="mb-4"><a href="payments.html" class="hover:underline">💰 Payments</a></li>
+                <li class="mb-4"><a href="notifications.html" class="hover:underline">🔔 Notifications</a></li>
+                <li class="mb-4"><a href="profile.html" class="hover:underline">👤 Profile</a></li>
+                <li><button id="logout" class="mt-6 bg-red-500 px-4 py-2 rounded">Logout</button></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-10">
+            <h2 class="text-2xl font-semibold">📊 Dashboard Overview</h2>
+            <div class="grid grid-cols-3 gap-6 mt-6">
+                <div class="bg-white p-6 shadow rounded text-center">
+                    <h3 class="text-lg font-bold">Total Books</h3>
+                    <p id="totalBooks" class="text-2xl font-semibold text-blue-600">Loading...</p>
+                </div>
+                <div class="bg-white p-6 shadow rounded text-center">
+                    <h3 class="text-lg font-bold">Total Students</h3>
+                    <p id="totalStudents" class="text-2xl font-semibold text-green-600">Loading...</p>
+                </div>
+                <div class="bg-white p-6 shadow rounded text-center">
+                    <h3 class="text-lg font-bold">Borrowed Books</h3>
+                    <p id="borrowedBooks" class="text-2xl font-semibold text-orange-600">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>
