@@ -1,31 +1,31 @@
-from backend.models import Book, Category, db
+from models import Book, Category, db  # ✅ Removed `backend.`
+
 class BookService:
     """Service class handling book-related operations."""
 
-@staticmethod
-def add_book(title, author, isbn, category_id, copies_available):
-    """Adds a new book to the library (Prevents duplicate ISBNs)."""
-    
-    # Check for duplicate ISBN
-    existing_book = Book.query.filter_by(isbn=isbn).first()
-    if existing_book:
-        return {"error": "Book with this ISBN already exists"}, 400
+    @staticmethod
+    def add_book(title, author, isbn, category_id, copies_available):
+        """Adds a new book to the library (Prevents duplicate ISBNs)."""
 
-    # Validate category existence
-    category = Category.query.get(category_id)
-    if not category:
-        return {"error": "Category not found"}, 404
+        # Check for duplicate ISBN
+        existing_book = Book.query.filter_by(isbn=isbn).first()
+        if existing_book:
+            return {"error": "Book with this ISBN already exists"}, 400
 
-    try:
-        # Insert new book
-        new_book = Book(title=title, author=author, isbn=isbn, category_id=category_id, copies_available=copies_available)
-        db.session.add(new_book)
-        db.session.commit()
-        return {"message": "Book added successfully", "id": new_book.id}, 201
-    except Exception as e:
-        db.session.rollback()
-        return {"error": f"Database error: {str(e)}"}, 500
+        # Validate category existence
+        category = Category.query.get(category_id)
+        if not category:
+            return {"error": "Category not found"}, 404
 
+        try:
+            # Insert new book
+            new_book = Book(title=title, author=author, isbn=isbn, category_id=category_id, copies_available=copies_available)
+            db.session.add(new_book)
+            db.session.commit()
+            return {"message": "Book added successfully", "id": new_book.id}, 201
+        except Exception as e:
+            db.session.rollback()
+            return {"error": f"Database error: {str(e)}"}, 500
 
     @staticmethod
     def get_books():
@@ -82,19 +82,19 @@ def add_book(title, author, isbn, category_id, copies_available):
         db.session.commit()
         return {"message": "Book deleted successfully"}, 200
     
-@staticmethod
-def search_books(query):
-    """Search books by title, author, or ISBN."""
-    books = Book.query.filter(
-        (Book.title.ilike(f"%{query}%")) | 
-        (Book.author.ilike(f"%{query}%")) |
-        (Book.isbn.ilike(f"%{query}%"))
-    ).all()
+    @staticmethod
+    def search_books(query):
+        """Search books by title, author, or ISBN."""
+        books = Book.query.filter(
+            (Book.title.ilike(f"%{query}%")) | 
+            (Book.author.ilike(f"%{query}%")) |
+            (Book.isbn.ilike(f"%{query}%"))
+        ).all()
 
-    return [{
-        "id": book.id,
-        "title": book.title,
-        "author": book.author,
-        "isbn": book.isbn,
-        "copies_available": book.copies_available
-    } for book in books], 200
+        return [{
+            "id": book.id,
+            "title": book.title,
+            "author": book.author,
+            "isbn": book.isbn,
+            "copies_available": book.copies_available
+        } for book in books], 200

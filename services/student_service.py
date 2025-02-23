@@ -1,6 +1,6 @@
-from backend.models import db, Book, BorrowedBook
+from models import db, Book, BorrowedBook  # ✅ Removed `backend.`
 from datetime import datetime, timedelta
-from backend.services.reservation_service import ReservationService
+from services.reservation_service import ReservationService  # ✅ Removed `backend.`
 
 class StudentService:
     """Service class handling student-related book borrowing and returning operations."""

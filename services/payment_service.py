@@ -1,6 +1,6 @@
 import razorpay
 import os
-from backend.models import db, BorrowedBook, PaymentRecord
+from models import db, BorrowedBook, PaymentRecord  # ✅ Removed `backend.`
 from datetime import datetime
 from flask import jsonify
 

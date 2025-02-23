@@ -1,6 +1,6 @@
-from backend.app import mail
+from app import mail  # ✅ Removed `backend.`
 from flask_mail import Message
-from backend.models import db, BorrowedBook, NotificationLog, User
+from models import db, BorrowedBook, NotificationLog, User  # ✅ Removed `backend.`
 from datetime import datetime, timedelta
 
 class NotificationService:

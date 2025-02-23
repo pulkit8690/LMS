@@ -1,8 +1,7 @@
-from backend.models import db, ReservedBook, Book, BorrowedBook
+from models import db, ReservedBook, Book, BorrowedBook  # ✅ Removed `backend.`
 from datetime import datetime
-from backend.app import mail
+from app import mail  # ✅ Removed `backend.`
 from flask_mail import Message
-
 
 class ReservationService:
     """Service to handle book reservations"""
@@ -39,21 +38,21 @@ class ReservationService:
 
         return {"message": "Reservation canceled successfully"}, 200
 
-@staticmethod
-def notify_reservation(book_id):
-    """Notifies the first student in the queue when a book is returned."""
-    reservation = ReservedBook.query.filter_by(book_id=book_id, status="pending").order_by(ReservedBook.reserved_at).first()
+    @staticmethod
+    def notify_reservation(book_id):
+        """Notifies the first student in the queue when a book is returned."""
+        reservation = ReservedBook.query.filter_by(book_id=book_id, status="pending").order_by(ReservedBook.reserved_at).first()
 
-    if reservation:
-        reservation.status = "notified"
-        db.session.commit()
+        if reservation:
+            reservation.status = "notified"
+            db.session.commit()
 
-        # ✅ Send an email notification
-        user_email = reservation.user.email
-        msg = Message("Book Available!", recipients=[user_email])
-        msg.body = f"The book '{reservation.book.title}' is now available for borrowing!"
-        mail.send(msg)
+            # ✅ Send an email notification
+            user_email = reservation.user.email
+            msg = Message("Book Available!", recipients=[user_email])
+            msg.body = f"The book '{reservation.book.title}' is now available for borrowing!"
+            mail.send(msg)
 
-        return reservation.user_id  # Return user ID for logging
+            return reservation.user_id  # Return user ID for logging
 
-    return None  # No reservations found
+        return None  # No reservations found
