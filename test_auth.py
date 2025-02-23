@@ -1,7 +1,8 @@
 import requests
 import random
+import time
 
-BASE_URL = "http://localhost:5000"  # Change for production
+BASE_URL = "https://lms-8owp.onrender.com"  # Change for production
 
 # Admin Credentials
 ADMIN_EMAIL = "pulkitarora8690@gmail.com"
@@ -28,9 +29,13 @@ def test_api(method, endpoint, data=None, token=None):
     url = f"{BASE_URL}{endpoint}"
     headers = {"Authorization": f"Bearer {token}"} if token else {}
 
-    response = requests.request(method, url, json=data, headers=headers)
-    log_result(endpoint, response)
-    return response
+    try:
+        response = requests.request(method, url, json=data, headers=headers, timeout=10)
+        log_result(endpoint, response)
+        return response
+    except requests.exceptions.RequestException as e:
+        print(f"❌ ERROR - {endpoint}: {e}")
+        return None
 
 
 def register_user(email, password, role):
@@ -43,7 +48,7 @@ def register_user(email, password, role):
         "role": role
     })
 
-    if response.status_code == 201:
+    if response and response.status_code == 201:
         print(f"📩 OTP sent to {email}")
         return True
     return False
@@ -51,8 +56,7 @@ def register_user(email, password, role):
 
 def verify_otp(email, password, role):
     """Asks the user for OTP input and verifies it"""
-    print(f"\n🚀 Enter OTP for {email} (Check Email)")
-    otp_code = input("📩 Enter OTP received: ")
+    otp_code = input(f"📩 Enter OTP for {email}: ")
 
     response = test_api("POST", "/auth/verify_otp", {
         "email": email,
@@ -62,7 +66,7 @@ def verify_otp(email, password, role):
         "role": role
     })
 
-    return response.status_code == 201
+    return response and response.status_code == 201
 
 
 def login(email, password):
@@ -73,7 +77,7 @@ def login(email, password):
         "password": password
     })
 
-    if response.status_code == 200:
+    if response and response.status_code == 200:
         token = response.json().get("access_token")
         print(f"✅ Logged in as {email}!")
         return token
@@ -83,68 +87,56 @@ def login(email, password):
 def fetch_profile(token):
     """Fetches user profile"""
     print("\n🚀 Fetching User Profile...")
-    response = test_api("GET", "/auth/profile", token=token)
-    return response.status_code == 200
+    return test_api("GET", "/auth/profile", token=token)
 
 
 def forgot_password(email):
     """Sends OTP for password reset"""
     print("\n🚀 Requesting Forgot Password OTP...")
-    response = test_api("POST", "/auth/forgot_password", {"email": email})
-    return response.status_code == 200
+    return test_api("POST", "/auth/forgot_password", {"email": email})
 
 
 def verify_password_reset_otp(email):
     """Verifies OTP for password reset"""
-    print("\n🚀 Enter OTP for Password Reset (Check Email)")
-    otp_code = input("📩 Enter OTP received: ")
+    otp_code = input(f"📩 Enter OTP for {email} (Password Reset): ")
 
-    response = test_api("POST", "/auth/verify_password_reset_otp", {
+    return test_api("POST", "/auth/verify_password_reset_otp", {
         "email": email,
         "otp": otp_code
     })
-    return response.status_code == 200
 
 
 def reset_password(email, new_password):
     """Resets the password after OTP verification"""
-    print("\n🚀 Resetting Password...")
-    response = test_api("POST", "/auth/reset_password", {
+    otp_code = input(f"📩 Enter OTP to reset password for {email}: ")
+
+    return test_api("POST", "/auth/reset_password", {
         "email": email,
-        "otp": input("📩 Enter OTP received: "),  # Ensure OTP is verified first
+        "otp": otp_code,
         "new_password": new_password
     })
-    return response.status_code == 200
 
 
 def run_tests():
     """Runs all Authentication API tests in correct order"""
 
-    global ADMIN_TOKEN, STUDENT_TOKEN  # ✅ Move `global` to the beginning
+    global ADMIN_TOKEN, STUDENT_TOKEN  
 
     # ✅ Register & Verify Admin
-    if not register_user(ADMIN_EMAIL, ADMIN_PASSWORD, "admin"):
-        return
-    if not verify_otp(ADMIN_EMAIL, ADMIN_PASSWORD, "admin"):
-        return
-
-    ADMIN_TOKEN = login(ADMIN_EMAIL, ADMIN_PASSWORD)
-    if not ADMIN_TOKEN:
-        return
+    if register_user(ADMIN_EMAIL, ADMIN_PASSWORD, "admin"):
+        if verify_otp(ADMIN_EMAIL, ADMIN_PASSWORD, "admin"):
+            ADMIN_TOKEN = login(ADMIN_EMAIL, ADMIN_PASSWORD)
 
     # ✅ Register & Verify Student
-    if not register_user(STUDENT_EMAIL, STUDENT_PASSWORD, "user"):
-        return
-    if not verify_otp(STUDENT_EMAIL, STUDENT_PASSWORD, "user"):
-        return
-
-    STUDENT_TOKEN = login(STUDENT_EMAIL, STUDENT_PASSWORD)
-    if not STUDENT_TOKEN:
-        return
+    if register_user(STUDENT_EMAIL, STUDENT_PASSWORD, "user"):
+        if verify_otp(STUDENT_EMAIL, STUDENT_PASSWORD, "user"):
+            STUDENT_TOKEN = login(STUDENT_EMAIL, STUDENT_PASSWORD)
 
     # ✅ Profile Fetch
-    fetch_profile(ADMIN_TOKEN)
-    fetch_profile(STUDENT_TOKEN)
+    if ADMIN_TOKEN:
+        fetch_profile(ADMIN_TOKEN)
+    if STUDENT_TOKEN:
+        fetch_profile(STUDENT_TOKEN)
 
     # ✅ Forgot Password & Reset (Student)
     if forgot_password(STUDENT_EMAIL):
