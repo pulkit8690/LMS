@@ -9,7 +9,7 @@ def init_db(app):
 
     try:
         with app.app_context():
-            if not db.engine.dialect.has_table(db.engine, "user"):  # ✅ Check if table exists before creating
+            if not db.engine.has_table("user"):  # ✅ Corrected check for existing tables
                 db.create_all()
                 print("✅ Tables created successfully (Render Fix)")
     except Exception as e:
