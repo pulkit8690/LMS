@@ -1,56 +1,12 @@
-import logging
-from flask import Flask, jsonify
-from config import Config
-from extensions import db, mail, migrate, socketio, limiter, jwt  # ✅ Import extensions
-from flask_cors import CORS
-from celery_config import celery, init_celery  # ✅ Import Celery properly
-from routes import register_routes  # ✅ Import routes after extensions are set up
+from services.notification_service import NotificationService
+from celery_config import celery  # ✅ Import Celery properly
 
-# ✅ Enable Logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+@celery.task
+def send_due_date_reminders_task():
+    """Celery task to send due date reminders."""
+    return NotificationService.send_due_date_reminders()
 
-def create_app():
-    """Creates and configures the Flask application."""
-    app = Flask(__name__)
-    app.config.from_object(Config)
-
-    # ✅ Initialize Extensions
-    db.init_app(app)
-    migrate.init_app(app, db)
-    mail.init_app(app)
-    socketio.init_app(app)
-    limiter.init_app(app)
-    jwt.init_app(app)
-
-    # ✅ Fix CORS to Work with Frontend
-    CORS(app, supports_credentials=True, 
-         resources={r"/*": {"origins": "*"}}, 
-         expose_headers=["Authorization", "Content-Type"])  # ✅ Allow frontend to read headers
-
-    # ✅ Initialize Celery
-    init_celery(app)
-
-    # ✅ Import & Register Routes AFTER Extensions
-    register_routes(app)
-
-    # ✅ Handle JSON Errors Gracefully
-    @app.errorhandler(400)
-    def bad_request(error):
-        return jsonify({"error": "Invalid request data"}), 400
-
-    @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({"error": "Resource not found"}), 404
-
-    # ✅ Home Route
-    @app.route("/")
-    @limiter.limit("10 per second")
-    def home():
-        logging.info("Home route accessed")
-        return jsonify({"message": "Welcome to Library Management System API!"})
-
-    return app
-
-if __name__ == "__main__":
-    app = create_app()
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)  # ✅ Required for Flask-SocketIO in Development Mode
+@celery.task
+def send_fine_reminders_task():
+    """Celery task to send fine reminders."""
+    return NotificationService.send_fine_reminders()
