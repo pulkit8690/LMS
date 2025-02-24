@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect
 import logging
 
 db = SQLAlchemy()
@@ -9,7 +10,8 @@ def init_db(app):
 
     try:
         with app.app_context():
-            if not db.engine.has_table("user"):  # ✅ Corrected check for existing tables
+            inspector = inspect(db.engine)
+            if not inspector.has_table("user"):  # ✅ Corrected table existence check
                 db.create_all()
                 print("✅ Tables created successfully (Render Fix)")
     except Exception as e:

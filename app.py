@@ -14,7 +14,7 @@ def create_app():
     app.config.from_object(Config)
 
     # ✅ Initialize Extensions before using SQLAlchemy
-    db.init_app(app)  # ✅ Ensure this is called before using `db`
+    db.init_app(app)  # ✅ Ensures `db` is ready before using it
     migrate.init_app(app, db)
     mail.init_app(app)
     socketio.init_app(app)
@@ -29,9 +29,10 @@ def create_app():
     if celery:
         init_celery(app)
 
-    # ✅ Import routes AFTER initializing extensions
+    # ✅ Register Routes Inside App Context
     with app.app_context():
         register_routes(app)
+        db.create_all()  # ✅ Ensures tables are created if missing
 
     @app.errorhandler(400)
     def bad_request(error):
