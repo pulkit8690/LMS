@@ -1,18 +1,18 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
+# Load environment variables from .env
 load_dotenv()
 
 
 class Config:
-    """Configuration class for environment variables and app settings."""
+    """Configuration class for Flask app settings."""
 
     # ─────────────────────────────────────────────────────────
     #  Security Keys
     # ─────────────────────────────────────────────────────────
-    SECRET_KEY = os.getenv("SECRET_KEY") or os.urandom(24).hex()
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.urandom(24).hex()
+    SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(24).hex())
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", os.urandom(24).hex())
 
     # ─────────────────────────────────────────────────────────
     #  Database Configuration
@@ -30,13 +30,18 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ─────────────────────────────────────────────────────────
+    #  Redis Configuration (Render)
+    # ─────────────────────────────────────────────────────────
+    REDIS_URL = os.getenv("REDIS_URL")
+
+    if not REDIS_URL:
+        print("⚠ Warning: REDIS_URL is missing! Using local Redis instance (localhost:6379)")
+        REDIS_URL = "redis://localhost:6379/0"  # ✅ Use local Redis as fallback
+
+    # ─────────────────────────────────────────────────────────
     #  Rate Limiting (Flask-Limiter)
     # ─────────────────────────────────────────────────────────
-    REDIS_URL = os.getenv("REDIS_URL")  # ✅ Get Render's Redis URL
-    if not REDIS_URL:
-        print("⚠ Warning: REDIS_URL is not set! Rate limiting & Celery may not work.")
-
-    RATELIMIT_STORAGE_URL = REDIS_URL or "memory://"
+    RATELIMIT_STORAGE_URL = REDIS_URL
     RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "100 per minute")
 
     # ─────────────────────────────────────────────────────────
@@ -55,12 +60,13 @@ class Config:
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 465))
     MAIL_USE_SSL = os.getenv("MAIL_USE_SSL", "True").lower() in ("true", "1", "yes")
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME", None)
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", None)
-    MAIL_DEFAULT_SENDER = MAIL_USERNAME if MAIL_USERNAME else "noreply@example.com"
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
 
     if not MAIL_USERNAME or not MAIL_PASSWORD:
         print("⚠ Warning: MAIL_USERNAME or MAIL_PASSWORD is missing! Email notifications may not work.")
+
+    MAIL_DEFAULT_SENDER = MAIL_USERNAME if MAIL_USERNAME else "noreply@example.com"
 
     # ─────────────────────────────────────────────────────────
     #  WebSocket (SocketIO) Settings
@@ -74,7 +80,7 @@ class Config:
     RAZORPAY_SECRET_KEY = os.getenv("RAZORPAY_SECRET_KEY")
 
     # ─────────────────────────────────────────────────────────
-    #  Celery Configuration (Using Render Redis)
+    #  Celery Configuration (Using Redis)
     # ─────────────────────────────────────────────────────────
-    CELERY_BROKER_URL = REDIS_URL or "redis://localhost:6379/0"
-    CELERY_RESULT_BACKEND = REDIS_URL or "redis://localhost:6379/0"
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
