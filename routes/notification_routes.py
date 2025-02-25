@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
-from services.notification_service import NotificationService  # ✅ Removed `backend.`
-from tasks import send_due_date_reminders_task, send_fine_reminders_task  # ✅ Removed `backend.`
+
+# Import the NotificationService and Celery tasks
+from services.notification_service import NotificationService
+from tasks.notification_tasks import send_due_date_reminders_task, send_fine_reminders_task
 
 notification_bp = Blueprint("notification", __name__)
 
@@ -10,24 +12,26 @@ notification_bp = Blueprint("notification", __name__)
 @jwt_required()
 def send_due_reminders():
     """Triggers due date reminders manually."""
-    return jsonify(NotificationService.send_due_date_reminders())
+    result = NotificationService.send_due_date_reminders()
+    
+    # ✅ Ensure `result` is a dictionary, not a Response object
+    if isinstance(result, tuple):  # Expected (dict, status_code)
+        response, status_code = result
+    else:  # Handle cases where only a dict is returned
+        response, status_code = result, 200
+
+    return jsonify(response), status_code
 
 # ✅ Manually Trigger Fine Reminders
 @notification_bp.route("/send-fine-reminders", methods=["POST"])
 @jwt_required()
 def send_fine_reminders():
     """Triggers fine reminders manually."""
-    return jsonify(NotificationService.send_fine_reminders())
+    result = NotificationService.send_fine_reminders()
 
-# ✅ Schedule Automatic Email Reminders (Celery)
-@notification_bp.route("/schedule-due-reminders", methods=["POST"])
-def schedule_due_reminders():
-    """Schedules automatic due date reminders via Celery."""
-    send_due_date_reminders_task.apply_async()
-    return jsonify({"message": "Scheduled due date reminders"}), 200
+    if isinstance(result, tuple):  
+        response, status_code = result
+    else:  
+        response, status_code = result, 200
 
-@notification_bp.route("/schedule-fine-reminders", methods=["POST"])
-def schedule_fine_reminders():
-    """Schedules automatic fine reminders via Celery."""
-    send_fine_reminders_task.apply_async()
-    return jsonify({"message": "Scheduled fine reminders"}), 200
+    return jsonify(response), status_code

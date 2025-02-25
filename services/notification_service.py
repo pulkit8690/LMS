@@ -1,7 +1,14 @@
-from app import mail  # ✅ Removed `backend.`
 from flask_mail import Message
-from models import db, BorrowedBook, NotificationLog, User  # ✅ Removed `backend.`
+from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
+from flask import jsonify
+
+# Import the single db instance
+from models import db
+from extensions import mail  # If your mail is defined in extensions.py
+from models.transaction_model import BorrowedBook
+from models.notification_model import NotificationLog
+from models.user_model import User
 
 class NotificationService:
     """Handles sending due date and fine reminders."""
@@ -23,41 +30,73 @@ class NotificationService:
     def send_due_date_reminders():
         """Sends reminders for books due in 2 days."""
         reminder_date = datetime.utcnow() + timedelta(days=2)
-        borrowed_books = BorrowedBook.query.filter(
-            BorrowedBook.due_date <= reminder_date,
-            BorrowedBook.returned.is_(False)
-        ).all()
+        try:
+            borrowed_books = BorrowedBook.query.filter(
+                BorrowedBook.due_date <= reminder_date,
+                BorrowedBook.returned.is_(False)
+            ).all()
 
-        for record in borrowed_books:
-            user = User.query.get(record.user_id)
-            if not user:
-                continue
+            reminders_sent = 0
 
-            message = f"Reminder: Your borrowed book '{record.book.title}' is due on {record.due_date.strftime('%Y-%m-%d')}. Please return it on time to avoid fines."
-            if NotificationService.send_email(user.email, "Library Due Date Reminder", message):
-                log = NotificationLog(user_id=user.id, message=message, notification_type="due_date")
-                db.session.add(log)
+            for record in borrowed_books:
+                user = User.query.get(record.user_id)
+                if not user:
+                    continue
 
-        db.session.commit()
-        return {"message": "Due date reminders sent"}, 200
+                message = (
+                    f"Reminder: Your borrowed book '{record.book.title}' is due on "
+                    f"{record.due_date.strftime('%Y-%m-%d')}. Please return it on time to avoid fines."
+                )
+
+                if NotificationService.send_email(user.email, "Library Due Date Reminder", message):
+                    log = NotificationLog(
+                        user_id=user.id,
+                        message=message,
+                        notification_type="due_date"
+                    )
+                    db.session.add(log)
+                    reminders_sent += 1
+
+            db.session.commit()
+            return {"message": f"Due date reminders sent to {reminders_sent} users"}, 200  # ✅ JSON-safe dict
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {"error": f"Database error: {str(e)}"}, 500  # ✅ JSON-safe dict
 
     @staticmethod
     def send_fine_reminders():
         """Sends reminders for unpaid fines."""
-        overdue_fines = BorrowedBook.query.filter(
-            BorrowedBook.fine_amount > 0,
-            BorrowedBook.fine_paid.is_(False)
-        ).all()
+        try:
+            overdue_fines = BorrowedBook.query.filter(
+                BorrowedBook.fine_amount > 0,
+                BorrowedBook.fine_paid.is_(False)
+            ).all()
 
-        for record in overdue_fines:
-            user = User.query.get(record.user_id)
-            if not user:
-                continue
+            reminders_sent = 0
 
-            message = f"Reminder: You have an unpaid fine of ₹{record.fine_amount}. Please pay it as soon as possible to avoid restrictions."
-            if NotificationService.send_email(user.email, "Library Fine Reminder", message):
-                log = NotificationLog(user_id=user.id, message=message, notification_type="fine_reminder")
-                db.session.add(log)
+            for record in overdue_fines:
+                user = User.query.get(record.user_id)
+                if not user:
+                    continue
 
-        db.session.commit()
-        return {"message": "Fine reminders sent"}, 200
+                message = (
+                    f"Reminder: You have an unpaid fine of ₹{record.fine_amount}. "
+                    "Please pay it as soon as possible to avoid restrictions."
+                )
+
+                if NotificationService.send_email(user.email, "Library Fine Reminder", message):
+                    log = NotificationLog(
+                        user_id=user.id,
+                        message=message,
+                        notification_type="fine_reminder"
+                    )
+                    db.session.add(log)
+                    reminders_sent += 1
+
+            db.session.commit()
+            return {"message": f"Fine reminders sent to {reminders_sent} users"}, 200  # ✅ JSON-safe dict
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {"error": f"Database error: {str(e)}"}, 500  # ✅ JSON-safe dict

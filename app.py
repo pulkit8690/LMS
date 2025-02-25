@@ -1,55 +1,60 @@
+# app.py
+
+import sys
+import os
 import logging
 from flask import Flask, jsonify
-from config import Config
-from extensions import db, mail, migrate, socketio, limiter, jwt  # ✅ Import SQLAlchemy `db`
 from flask_cors import CORS
-from celery_config import celery, init_celery
-from routes import register_routes
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# Import your Config class from config.py (same folder)
+from config import Config
+
+# Import your extension init function
+from extensions import init_extensions
 
 def create_app():
-    """Creates and configures the Flask application."""
+    """
+    Factory function that creates and configures the Flask application.
+    """
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(Config)  # Load settings from config.py
 
-    # ✅ Initialize Extensions before using SQLAlchemy
-    db.init_app(app)  # ✅ Ensures `db` is ready before using it
-    migrate.init_app(app, db)
-    mail.init_app(app)
-    socketio.init_app(app)
-    limiter.init_app(app)
-    jwt.init_app(app)
+    # 1) Initialize all Flask extensions
+    init_extensions(app)
 
-    CORS(app, supports_credentials=True, 
-         resources={r"/*": {"origins": "*"}}, 
-         expose_headers=["Authorization", "Content-Type"])
-
-    # ✅ Initialize Celery (only if Redis is enabled)
-    if celery:
-        init_celery(app)
-
-    # ✅ Register Routes Inside App Context
+    # 2) Register your routes/blueprints
     with app.app_context():
+        from routes import register_routes  # or adapt if your route file is elsewhere
         register_routes(app)
-        db.create_all()  # ✅ Ensures tables are created if missing
 
+    # 3) Define error handlers
     @app.errorhandler(400)
     def bad_request(error):
+        app.logger.error(f"400 Error: {error}")
         return jsonify({"error": "Invalid request data"}), 400
 
     @app.errorhandler(404)
     def not_found(error):
+        app.logger.error(f"404 Error: {error}")
         return jsonify({"error": "Resource not found"}), 404
 
+    @app.errorhandler(500)
+    def internal_error(error):
+        app.logger.error(f"500 Error: {error}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    # 4) Simple Home Route
     @app.route("/")
-    @limiter.limit("10 per second")
     def home():
-        logging.info("Home route accessed")
+        app.logger.info("Home route accessed")
         return jsonify({"message": "Welcome to Library Management System API!"})
 
-    return app
+    # 5) Enable CORS
+    CORS(
+        app,
+        supports_credentials=True,
+        resources={r"/*": {"origins": "*"}},
+        expose_headers=["Authorization", "Content-Type"],
+    )
 
-if __name__ == "__main__":
-    app = create_app()
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    return app

@@ -1,3 +1,5 @@
+# tests/test_admin.py
+
 import requests
 import random
 
@@ -17,7 +19,8 @@ def log_result(api_name, response):
     """Logs API test results with exception handling"""
     try:
         status = "✅ SUCCESS" if response.status_code in [200, 201] else "❌ FAILED"
-        print(f"{status} - {api_name}: {response.status_code} {response.json() if response.content else 'No response data'}")
+        print(f"{status} - {api_name}: {response.status_code} "
+              f"{response.json() if response.content else 'No response data'}")
     except requests.exceptions.JSONDecodeError:
         print(f"❌ FAILED - {api_name}: {response.status_code} (Invalid JSON response)")
 
@@ -41,7 +44,7 @@ def login():
         "password": ADMIN_PASSWORD
     })
 
-    if response.status_code == 200:
+    if response and response.status_code == 200:
         ADMIN_TOKEN = response.json().get("access_token")
         print("✅ Logged in as Admin!")
         return True
@@ -49,26 +52,25 @@ def login():
 
 
 def get_books():
-    """Fetches all books"""
-    print("\n🚀 Viewing All Books...")
-    response = test_api("GET", "/books", token=ADMIN_TOKEN)
+    """Fetches all books (via admin endpoint)."""
+    print("\n🚀 Viewing All Books (Admin)...")
+    response = test_api("GET", "/admin/books", token=ADMIN_TOKEN)
     return response.status_code == 200
 
 
 def add_book():
     """Adds a new book using the admin account"""
     global BOOK_ID
-    print("\n🚀 Adding a Book...")
-
-    response = test_api("POST", "/books/add", {
+    print("\n🚀 Adding a Book (Admin)...")
+    response = test_api("POST", "/admin/books/add", {
         "title": "API Test Book",
         "author": "John Doe",
         "isbn": str(random.randint(1000000000000, 9999999999999)),  # Unique ISBN
-        "category_id": 1,  # ✅ Changed from genre to category_id
+        "category_id": 1,
         "copies_available": 3
     }, ADMIN_TOKEN)
 
-    if response.status_code == 201:
+    if response and response.status_code == 201:
         BOOK_ID = response.json().get("id")
         print(f"✅ Book added successfully with ID: {BOOK_ID}")
         return True
@@ -82,8 +84,8 @@ def update_book():
         print("❌ No book available to update. Skipping...")
         return False
 
-    print(f"\n🚀 Updating Book ID {BOOK_ID}...")
-    response = test_api("PUT", f"/books/update/{BOOK_ID}", {
+    print(f"\n🚀 Updating Book ID {BOOK_ID} (Admin)...")
+    response = test_api("PUT", f"/admin/books/update/{BOOK_ID}", {
         "title": "Updated API Test Book"
     }, ADMIN_TOKEN)
     return response.status_code == 200
@@ -95,8 +97,8 @@ def delete_book():
         print("❌ No book available to delete. Skipping...")
         return False
 
-    print(f"\n🚀 Deleting Book ID {BOOK_ID}...")
-    response = test_api("DELETE", f"/books/delete/{BOOK_ID}", token=ADMIN_TOKEN)
+    print(f"\n🚀 Deleting Book ID {BOOK_ID} (Admin)...")
+    response = test_api("DELETE", f"/admin/books/delete/{BOOK_ID}", token=ADMIN_TOKEN)
     return response.status_code == 200
 
 
@@ -174,19 +176,28 @@ def generate_reports():
 
 def run_tests():
     """Runs all Admin API tests in correct order"""
-
     global ADMIN_TOKEN, BOOK_ID
 
+    # 1) Login
     if not login():
         return
 
+    # 2) View Books
+    get_books()
+
+    # 3) Add Book -> Issue -> Extension -> View Borrowed -> Return -> Delete
     if add_book():
-        issue_book()  # ✅ Ensure a book is issued before checking borrowed books
+        issue_book()
         manage_extension()
         view_borrowed_books()
         return_book()
+        delete_book()
 
-    delete_book()
+    # Optionally get Students and block/unblock (if needed)
+    get_students()
+    block_unblock_student()
+
+    generate_reports()
 
     print("\n🎉 **ALL ADMIN API TESTS COMPLETED SUCCESSFULLY!** 🎉")
 

@@ -1,16 +1,39 @@
+import os
+import logging
 from celery import Celery
-from config import Config
+from flask import Flask
 
-celery = Celery(__name__, broker=Config.CELERY_BROKER_URL, backend=Config.CELERY_RESULT_BACKEND)
+# Configure logging for Celery
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-def init_celery(app):
+celery = Celery(__name__)
+
+def init_celery(app: Flask):
     """Initialize Celery with Flask application context."""
-    celery.conf.update(app.config)
+    try:
+        celery.conf.update(
+            broker_url=os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+            result_backend=os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
+            task_serializer="json",
+            accept_content=["json"],
+            timezone="UTC",
+        )
+        logging.info("✅ Celery successfully configured with Redis broker.")
+    except Exception as e:
+        logging.error(f"❌ ERROR: Failed to configure Celery - {e}")
+        raise
 
     class ContextTask(celery.Task):
         """Ensures Celery tasks run within Flask's app context."""
         def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
+            try:
+                with app.app_context():
+                    return self.run(*args, **kwargs)
+            except Exception as e:
+                logging.error(f"❌ Celery Task Error: {e}")
+                raise
 
-    celery.Task = ContextTask  # ✅ Properly assign Celery Task
+    celery.Task = ContextTask

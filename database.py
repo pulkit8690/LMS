@@ -1,17 +1,25 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect
 import logging
+from sqlalchemy import inspect
 
-db = SQLAlchemy()
+# Import the single db instance from extensions
+from extensions import db
 
 def init_db(app):
-    """Initializes the database with the given Flask app."""
-    db.init_app(app)
-
+    """
+    (Optional) Initializes the database with the given Flask app.
+    Typically, you rely on 'flask db migrate/upgrade' with Flask-Migrate.
+    If you're in dev mode and want to create tables quickly without migrations:
+    
+        with app.app_context():
+            db.create_all()
+    
+    Then remove or comment out if using migrations in production.
+    """
     try:
         with app.app_context():
+            # Optional: check if tables exist, create them (for quick dev only)
             inspector = inspect(db.engine)
-            if not inspector.has_table("user"):  # ✅ Corrected table existence check
+            if not inspector.has_table("user"):
                 db.create_all()
                 print("✅ Tables created successfully (Render Fix)")
     except Exception as e:

@@ -1,9 +1,18 @@
+# routes/admin_routes.py
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
 from sqlalchemy import func
-from models import db, User, Book, BorrowedBook, ReservedBook  # ✅ Removed backend.
 from datetime import datetime, timedelta
+
+# Import the single db instance and necessary models
+from models import db
+from models.user_model import User
+from models.book_model import Book
+from models.transaction_model import BorrowedBook
+from models.reservation_model import ReservedBook
+from services.book_service import BookService
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -32,12 +41,11 @@ def get_books():
             "isbn": book.isbn,
             "category_id": book.category_id,
             "copies_available": book.copies_available
-        } 
+        }
         for book in books
     ]
     return jsonify(books_list), 200
 
-# ✅ Add a Book (Prevent Duplicate ISBN)
 @admin_bp.route("/books/add", methods=["POST"])
 @admin_required
 def add_book():
@@ -51,18 +59,11 @@ def add_book():
     if not title or not author or not isbn or not category_id:
         return jsonify({"error": "All fields are required"}), 400
 
-    existing_book = Book.query.filter_by(isbn=isbn).first()
-    if existing_book:
-        return jsonify({"error": "Book with this ISBN already exists"}), 400
+    # ✅ Call the service method
+    response, status_code = BookService.add_book(title, author, isbn, category_id, copies_available)
 
-    new_book = Book(
-        title=title, author=author, isbn=isbn, 
-        category_id=category_id, copies_available=copies_available
-    )
-    db.session.add(new_book)
-    db.session.commit()
+    return jsonify(response), status_code
 
-    return jsonify({"message": "Book added successfully"}), 201
 
 # ✅ Update a Book
 @admin_bp.route("/books/update/<int:book_id>", methods=["PUT"])
@@ -83,7 +84,7 @@ def update_book(book_id):
     db.session.commit()
     return jsonify({"message": "Book updated successfully"}), 200
 
-# ✅ Delete a Book (Ensure Reserved Books Are Deleted First)
+# ✅ Delete a Book
 @admin_bp.route("/books/delete/<int:book_id>", methods=["DELETE"])
 @admin_required
 def delete_book(book_id):
@@ -92,7 +93,7 @@ def delete_book(book_id):
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    # ✅ Delete all reservations before deleting the book
+    # Delete all reservations before deleting the book
     ReservedBook.query.filter_by(book_id=book_id).delete()
 
     db.session.delete(book)
@@ -110,7 +111,7 @@ def get_students():
             "name": student.name,
             "email": student.email,
             "status": "Blocked" if student.is_blocked else "Active"
-        } 
+        }
         for student in students
     ]
     return jsonify(students_list), 200
@@ -145,10 +146,12 @@ def issue_book():
     if not book or book.copies_available < 1:
         return jsonify({"error": "Book not available"}), 400
 
-    due_date = datetime.utcnow() + timedelta(days=14)  # 2-week borrow period
+    due_date = datetime.utcnow() + timedelta(days=14)
     new_borrow = BorrowedBook(
-        user_id=student.id, book_id=book.id, 
-        due_date=due_date, returned=False
+        user_id=student.id,
+        book_id=book.id,
+        due_date=due_date,
+        returned=False
     )
 
     book.copies_available -= 1
@@ -165,7 +168,11 @@ def accept_return():
     book_id = data.get("book_id")
     student_id = data.get("student_id")
 
-    borrow_record = BorrowedBook.query.filter_by(user_id=student_id, book_id=book_id, returned=False).first()
+    borrow_record = BorrowedBook.query.filter_by(
+        user_id=student_id,
+        book_id=book_id,
+        returned=False
+    ).first()
 
     if not borrow_record:
         return jsonify({"error": "No active borrow record found"}), 400
@@ -186,13 +193,13 @@ def view_borrowed_books():
 
     books_list = [
         {
-            "student_id": book.user.id,
-            "student_name": book.user.name,
-            "book_id": book.book.id,
-            "book_title": book.book.title,
-            "due_date": book.due_date.strftime("%Y-%m-%d")
-        } 
-        for book in borrowed_books
+            "student_id": record.user.id,
+            "student_name": record.user.name,
+            "book_id": record.book.id,
+            "book_title": record.book.title,
+            "due_date": record.due_date.strftime("%Y-%m-%d"),
+        }
+        for record in borrowed_books
     ]
 
     return jsonify(books_list), 200
@@ -206,7 +213,11 @@ def manage_extension():
     student_id = data.get("student_id")
     action = data.get("action")
 
-    borrow_record = BorrowedBook.query.filter_by(user_id=student_id, book_id=book_id, returned=False).first()
+    borrow_record = BorrowedBook.query.filter_by(
+        user_id=student_id,
+        book_id=book_id,
+        returned=False
+    ).first()
 
     if not borrow_record:
         return jsonify({"error": "No active borrow record found"}), 400

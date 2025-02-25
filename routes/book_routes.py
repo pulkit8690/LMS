@@ -1,14 +1,20 @@
+# routes/book_routes.py
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
-from models import db, Book, Category, User, BorrowedBook, ReservedBook  # ✅ Removed `backend.`
-from flask_socketio import emit
-from app import socketio  # ✅ Ensure correct WebSocket import
 from datetime import datetime
+import traceback
+
+# Import the single db instance and relevant models
+from models import db
+from models.book_model import Book, Category
+from models.user_model import User
+from models.transaction_model import BorrowedBook
+from models.reservation_model import ReservedBook
 
 book_bp = Blueprint("books", __name__)
 
-# ✅ Ensure Admin Access
 def admin_required(fn):
     """Decorator to ensure the user is an admin."""
     @wraps(fn)
@@ -25,7 +31,6 @@ def admin_required(fn):
 @book_bp.route("/category/add", methods=["POST"])
 @admin_required
 def add_category():
-    """Admin can add a new book category."""
     data = request.json
     name = data.get("name")
 
@@ -46,15 +51,13 @@ def add_category():
 @book_bp.route("/add", methods=["POST"])
 @admin_required
 def add_book():
-    """Admin can add a new book to the library."""
     data = request.json
-
     try:
         title = data.get("title")
         author = data.get("author")
         isbn = data.get("isbn")
-        category_id = int(data.get("category_id"))  # ✅ Ensure category_id is an integer
-        copies_available = int(data.get("copies_available", 1))  # ✅ Ensure copies_available is an integer
+        category_id = int(data.get("category_id"))
+        copies_available = int(data.get("copies_available", 1))
 
         if not title or not author or not isbn or not category_id:
             return jsonify({"error": "All fields (title, author, isbn, category_id) are required"}), 400
@@ -67,7 +70,13 @@ def add_book():
         if existing_book:
             return jsonify({"error": "Book with this ISBN already exists"}), 400
 
-        new_book = Book(title=title, author=author, isbn=isbn, category_id=category_id, copies_available=copies_available)
+        new_book = Book(
+            title=title,
+            author=author,
+            isbn=isbn,
+            category_id=category_id,
+            copies_available=copies_available
+        )
         db.session.add(new_book)
         db.session.commit()
 
@@ -77,14 +86,12 @@ def add_book():
         return jsonify({"error": "Invalid data format"}), 400
     except Exception as e:
         db.session.rollback()
-        import traceback
-        traceback.print_exc()  # ✅ Print full error details in Flask logs
-        return jsonify({"error": str(e)}), 500  # ✅ Ensures JSON response
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # ✅ View All Books
 @book_bp.route("/", methods=["GET"])
 def get_books():
-    """Fetch all books with their category."""
     books = Book.query.all()
     books_list = [
         {
@@ -93,7 +100,7 @@ def get_books():
             "author": book.author,
             "isbn": book.isbn,
             "category_id": book.category_id,
-            "category_name": book.category.name,
+            "category_name": book.category.name if book.category else None,
             "copies_available": book.copies_available,
         }
         for book in books
@@ -103,7 +110,6 @@ def get_books():
 # ✅ Get Books by Category
 @book_bp.route("/category/<int:category_id>", methods=["GET"])
 def get_books_by_category(category_id):
-    """Fetch books filtered by category."""
     category = Category.query.get(category_id)
     if not category:
         return jsonify({"error": "Category not found"}), 404
@@ -125,7 +131,6 @@ def get_books_by_category(category_id):
 @book_bp.route("/update/<int:book_id>", methods=["PUT"])
 @admin_required
 def update_book(book_id):
-    """Admin can update book details."""
     book = Book.query.get(book_id)
     if not book:
         return jsonify({"error": "Book not found"}), 404
@@ -143,29 +148,19 @@ def update_book(book_id):
 
     db.session.commit()
 
-    # 🔥 Emit WebSocket event
-    socketio.emit("book_update", {"message": f"Book updated: {book.title}"})
-
     return jsonify({"message": "Book updated successfully"}), 200
 
 # ✅ Delete a Book (Admin Only)
 @book_bp.route("/delete/<int:book_id>", methods=["DELETE"])
 @admin_required
 def delete_book(book_id):
-    """Admin can delete a book."""
     book = Book.query.get(book_id)
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    # ✅ First, delete all reservations related to this book
     ReservedBook.query.filter_by(book_id=book_id).delete()
-
-    # ✅ Now, delete the book
     db.session.delete(book)
     db.session.commit()
-
-    # 🔥 Emit WebSocket event
-    socketio.emit("book_update", {"message": f"Book deleted: {book.title}"})
 
     return jsonify({"message": "Book deleted successfully"}), 200
 
@@ -173,7 +168,6 @@ def delete_book(book_id):
 @book_bp.route("/borrow", methods=["POST"])
 @jwt_required()
 def borrow_book():
-    """User borrows a book."""
     data = request.json
     user_id = get_jwt_identity()
     book_id = data.get("book_id")
@@ -184,7 +178,12 @@ def borrow_book():
     if book.copies_available < 1:
         return jsonify({"error": "No copies available"}), 400
 
-    borrowed_book = BorrowedBook(user_id=user_id, book_id=book_id, due_date=datetime.utcnow())
+    borrowed_book = BorrowedBook(
+        user_id=user_id,
+        book_id=book_id,
+        due_date=datetime.utcnow(),
+        returned=False
+    )
     book.copies_available -= 1
 
     db.session.add(borrowed_book)
@@ -196,12 +195,16 @@ def borrow_book():
 @book_bp.route("/return", methods=["POST"])
 @jwt_required()
 def return_book():
-    """User returns a borrowed book."""
     data = request.json
     user_id = get_jwt_identity()
     book_id = data.get("book_id")
 
-    borrowed_book = BorrowedBook.query.filter_by(user_id=user_id, book_id=book_id, returned=False).first()
+    borrowed_book = BorrowedBook.query.filter_by(
+        user_id=user_id,
+        book_id=book_id,
+        returned=False
+    ).first()
+
     if not borrowed_book:
         return jsonify({"error": "Borrowed book not found"}), 404
 
@@ -213,24 +216,4 @@ def return_book():
         book.copies_available += 1
 
     db.session.commit()
-
     return jsonify({"message": "Book returned successfully"}), 200
-
-# ✅ Reserve Book
-@book_bp.route("/reserve", methods=["POST"])
-@jwt_required()
-def reserve_book():
-    """User reserves a book."""
-    data = request.json
-    user_id = get_jwt_identity()
-    book_id = data.get("book_id")
-
-    book = Book.query.get(book_id)
-    if not book:
-        return jsonify({"error": "Book not found"}), 404
-
-    reserved_book = ReservedBook(user_id=user_id, book_id=book_id)
-    db.session.add(reserved_book)
-    db.session.commit()
-
-    return jsonify({"message": "Book reserved successfully"}), 200

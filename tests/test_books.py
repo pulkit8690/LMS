@@ -1,8 +1,10 @@
+# tests/test_books.py
+
 import requests
 import random
 import time
 
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://127.0.0.1:5000"
 
 # Admin Credentials
 ADMIN_EMAIL = "pulkitarora8690@gmail.com"
@@ -18,7 +20,8 @@ def log_result(api_name, response):
     """Logs API test results with exception handling"""
     try:
         status = "✅ SUCCESS" if response.status_code in [200, 201] else "❌ FAILED"
-        print(f"{status} - {api_name}: {response.status_code} {response.json() if response.content else 'No response data'}")
+        print(f"{status} - {api_name}: {response.status_code} "
+              f"{response.json() if response.content else 'No response data'}")
     except requests.exceptions.JSONDecodeError:
         print(f"❌ FAILED - {api_name}: {response.status_code} (Invalid JSON response)")
 
@@ -59,7 +62,7 @@ def add_category():
         print("❌ Admin Token Missing! Ensure login was successful.")
         return False
 
-    response = test_api("POST", "/books/category/add", {  # ✅ Correct API path
+    response = test_api("POST", "/books/category/add", {
         "name": f"Category {random.randint(1, 9999)}"
     }, ADMIN_TOKEN)
 
@@ -84,7 +87,7 @@ def add_book():
         print("❌ No category available. Skipping book addition...")
         return False
 
-    response = test_api("POST", "/books/add", {  # ✅ Fixed API path
+    response = test_api("POST", "/books/add", {
         "title": "API Test Book",
         "author": "John Doe",
         "isbn": str(random.randint(1000000000000, 9999999999999)),  # Unique ISBN
@@ -114,10 +117,10 @@ def get_books_by_category():
         return False
 
     print("\n⌛ Waiting for database update...")
-    time.sleep(2)  # ✅ Ensures DB update before querying
+    time.sleep(2)  # small delay to ensure DB is updated
 
     print("\n🚀 Viewing Books by Category...")
-    response = test_api("GET", f"/books/category/{CATEGORY_ID}")  # ✅ Fixed API path
+    response = test_api("GET", f"/books/category/{CATEGORY_ID}")
     return response.status_code == 200
 
 
@@ -128,7 +131,7 @@ def update_book():
         return False
 
     print("\n🚀 Updating Book...")
-    response = test_api("PUT", f"/books/update/{BOOK_ID}", {  # ✅ Fixed API path
+    response = test_api("PUT", f"/books/update/{BOOK_ID}", {
         "title": "Updated API Test Book",
         "copies_available": 5
     }, ADMIN_TOKEN)
@@ -142,7 +145,7 @@ def delete_book():
         return False
 
     print("\n🚀 Deleting Book...")
-    response = test_api("DELETE", f"/books/delete/{BOOK_ID}", token=ADMIN_TOKEN)  # ✅ Fixed API path
+    response = test_api("DELETE", f"/books/delete/{BOOK_ID}", token=ADMIN_TOKEN)
     return response.status_code == 200
 
 
@@ -181,9 +184,8 @@ def reserve_book():
         return False
 
     print("\n🚀 Reserving a Book...")
-    response = test_api("POST", "/books/reserve", {
-        "book_id": BOOK_ID
-    }, ADMIN_TOKEN)
+    response = test_api("POST", f"/books/reserve/{BOOK_ID}", {}, ADMIN_TOKEN)
+
 
     return response.status_code == 200
 

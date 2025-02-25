@@ -1,12 +1,20 @@
+from celery import shared_task
 from services.notification_service import NotificationService
-from celery_config import celery  # ✅ Import Celery properly
 
-@celery.task
-def send_due_date_reminders_task():
+@shared_task(bind=True)
+def send_due_date_reminders_task(self):
     """Celery task to send due date reminders."""
-    return NotificationService.send_due_date_reminders()
+    try:
+        return NotificationService.send_due_date_reminders()
+    except Exception as e:
+        self.retry(exc=e, countdown=10)
+        return {"error": f"Task failed: {str(e)}"}
 
-@celery.task
-def send_fine_reminders_task():
+@shared_task(bind=True)
+def send_fine_reminders_task(self):
     """Celery task to send fine reminders."""
-    return NotificationService.send_fine_reminders()
+    try:
+        return NotificationService.send_fine_reminders()
+    except Exception as e:
+        self.retry(exc=e, countdown=10)
+        return {"error": f"Task failed: {str(e)}"}

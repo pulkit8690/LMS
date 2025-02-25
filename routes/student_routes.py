@@ -1,8 +1,16 @@
+# routes/student_routes.py
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, User, Book, BorrowedBook  # ✅ Removed `backend.`
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
+from sqlalchemy import exists
+
+# Import the single db instance and models
+from models import db
+from models.user_model import User
+from models.book_model import Book
+from models.transaction_model import BorrowedBook
 
 student_bp = Blueprint("student", __name__)
 
@@ -10,7 +18,6 @@ student_bp = Blueprint("student", __name__)
 @student_bp.route("/books", methods=["GET"])
 @jwt_required()
 def get_books():
-    """Fetch all books available in the library"""
     books = Book.query.all()
     books_list = [
         {
@@ -29,7 +36,6 @@ def get_books():
 @student_bp.route("/books/borrow/<int:book_id>", methods=["POST"])
 @jwt_required()
 def borrow_book(book_id):
-    """Allows a user to borrow a book only if there are no unpaid fines."""
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     book = Book.query.get(book_id)
@@ -37,25 +43,32 @@ def borrow_book(book_id):
     if not book or book.copies_available < 1:
         return jsonify({"error": "Book not available"}), 400
 
-    # ✅ Check for unpaid fines
+    # Check for unpaid fines
     pending_fines = db.session.query(
-        db.session.query(BorrowedBook).filter(
+        exists().where(
             BorrowedBook.user_id == user_id,
             BorrowedBook.fine_amount > 0,
             BorrowedBook.fine_paid.is_(False)
-        ).exists()
+        )
     ).scalar()
 
     if pending_fines:
         return jsonify({"error": "You have unpaid fines. Pay them before borrowing another book."}), 403
 
-    # ✅ Borrow limit check (Max 3 books per student)
+    # Borrow limit check (max 3 books)
     MAX_BORROW_LIMIT = 3
-    if BorrowedBook.query.filter_by(user_id=user.id, returned=False).count() >= MAX_BORROW_LIMIT:
+    current_borrow_count = BorrowedBook.query.filter_by(user_id=user.id, returned=False).count()
+    if current_borrow_count >= MAX_BORROW_LIMIT:
         return jsonify({"error": "Borrow limit reached (Max: 3 books)"}), 400
 
     due_date = datetime.utcnow() + timedelta(days=14)
-    new_borrow = BorrowedBook(user_id=user.id, book_id=book.id, due_date=due_date, returned=False, fine_paid=False)
+    new_borrow = BorrowedBook(
+        user_id=user.id,
+        book_id=book.id,
+        due_date=due_date,
+        returned=False,
+        fine_paid=False
+    )
 
     book.copies_available -= 1
     db.session.add(new_borrow)
@@ -63,46 +76,46 @@ def borrow_book(book_id):
 
     return jsonify({"message": "Book borrowed successfully", "due_date": due_date.strftime("%Y-%m-%d")}), 200
 
-# ✅ Return a Book (Fine Enforced but Not Required for Return)
+# ✅ Return a Book
 @student_bp.route("/books/return/<int:borrow_id>", methods=["POST"])
 @jwt_required()
 def return_book(borrow_id):
-    """Allows users to return books and calculates fines if overdue."""
     user_id = get_jwt_identity()
-    
-    borrow_record = BorrowedBook.query.filter_by(id=borrow_id, user_id=user_id, returned=False).first()
-    
+    borrow_record = BorrowedBook.query.filter_by(
+        id=borrow_id,
+        user_id=user_id,
+        returned=False
+    ).first()
+
     if not borrow_record:
         return jsonify({"error": "No active borrow record found"}), 400
 
-    # ✅ Calculate fine if returned late
-    fine_per_day = 5  # ₹5 per day fine
     fine_amount = 0
-    
+    fine_per_day = 5  # ₹5 per day fine
     if borrow_record.due_date < datetime.utcnow():
         days_late = (datetime.utcnow() - borrow_record.due_date).days
         fine_amount = days_late * fine_per_day
 
-    # ✅ Update the borrow record
     book = Book.query.get(borrow_record.book_id)
-    book.copies_available += 1  # Increase book count
+    if book:
+        book.copies_available += 1
+
     borrow_record.returned = True
     borrow_record.return_date = datetime.utcnow()
-    borrow_record.fine_amount = fine_amount  # ✅ Store fine amount
-    borrow_record.fine_paid = False  # Mark fine as unpaid
+    borrow_record.fine_amount = fine_amount
+    borrow_record.fine_paid = False
 
     db.session.commit()
-    
+
     return jsonify({"message": "Book returned successfully", "fine_amount": fine_amount}), 200
 
 # ✅ Pay Fine
 @student_bp.route("/books/pay-fine", methods=["POST"])
 @jwt_required()
 def pay_fine():
-    """Allows users to pay all pending fines before borrowing again."""
     user_id = get_jwt_identity()
     pending_fines = BorrowedBook.query.filter(
-        BorrowedBook.user_id == user_id, 
+        BorrowedBook.user_id == user_id,
         BorrowedBook.fine_amount > 0,
         BorrowedBook.fine_paid.is_(False)
     ).all()
@@ -110,7 +123,6 @@ def pay_fine():
     if not pending_fines:
         return jsonify({"message": "No pending fines to pay."}), 200
 
-    # ✅ Mark all fines as paid
     for fine in pending_fines:
         fine.fine_paid = True
 
@@ -121,19 +133,18 @@ def pay_fine():
 @student_bp.route("/books/borrowed", methods=["GET"])
 @jwt_required()
 def view_borrowed_books():
-    """View all borrowed books and pending fines."""
     user_id = get_jwt_identity()
     borrowed_books = BorrowedBook.query.filter_by(user_id=user_id, returned=False).all()
 
     books_list = [
         {
-            "id": book.book.id,
-            "title": book.book.title,
-            "author": book.book.author,
-            "due_date": book.due_date.strftime("%Y-%m-%d"),
-            "fine_due": book.fine_amount if book.fine_amount else 0
+            "id": record.book.id,
+            "title": record.book.title,
+            "author": record.book.author,
+            "due_date": record.due_date.strftime("%Y-%m-%d"),
+            "fine_due": record.fine_amount if record.fine_amount else 0
         }
-        for book in borrowed_books
+        for record in borrowed_books
     ]
 
     return jsonify(books_list), 200
@@ -142,7 +153,6 @@ def view_borrowed_books():
 @student_bp.route("/books/extend/<int:book_id>", methods=["POST"])
 @jwt_required()
 def request_extension(book_id):
-    """Allows users to extend the due date of borrowed books."""
     user_id = get_jwt_identity()
     borrow_record = BorrowedBook.query.filter_by(user_id=user_id, book_id=book_id, returned=False).first()
 
@@ -152,13 +162,12 @@ def request_extension(book_id):
     borrow_record.due_date += timedelta(days=7)
     db.session.commit()
 
-    return jsonify({"message": "Due date extended successfully", "new_due_date": borrow_record.due_date.strftime("%Y-%m-%d")}), 200
+    return jsonify({"message": "Due date extended successfully", "new_due_date": borrow_record.due_date.strftime('%Y-%m-%d')}), 200
 
 # ✅ Edit Profile (Password Change Only)
 @student_bp.route("/profile/edit", methods=["PUT"])
 @jwt_required()
 def edit_profile():
-    """Allows users to change their password."""
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
@@ -168,8 +177,8 @@ def edit_profile():
     data = request.json
     password = data.get("password")
 
-    if not password:
-        return jsonify({"error": "Password is required"}), 400
+    if not password or len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters long"}), 400
 
     user.password = generate_password_hash(password)
     db.session.commit()
