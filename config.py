@@ -19,7 +19,7 @@ class Config:
     # ─────────────────────────────────────────────────────────
     DATABASE_URL = os.getenv("DATABASE_URL")
 
-    # If using PostgreSQL, the old URL format "postgres://" needs to become "postgresql://"
+    # ✅ Ensure PostgreSQL URL format is correct
     if DATABASE_URL:
         if DATABASE_URL.startswith("postgres://"):
             DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
@@ -32,7 +32,11 @@ class Config:
     # ─────────────────────────────────────────────────────────
     #  Rate Limiting (Flask-Limiter)
     # ─────────────────────────────────────────────────────────
-    RATELIMIT_STORAGE_URL = os.getenv("RATELIMIT_STORAGE_URL", "memory://")
+    REDIS_URL = os.getenv("REDIS_URL")  # ✅ Get Render's Redis URL
+    if not REDIS_URL:
+        print("⚠ Warning: REDIS_URL is not set! Rate limiting & Celery may not work.")
+
+    RATELIMIT_STORAGE_URL = REDIS_URL or "memory://"
     RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "100 per minute")
 
     # ─────────────────────────────────────────────────────────
@@ -56,7 +60,7 @@ class Config:
     MAIL_DEFAULT_SENDER = MAIL_USERNAME if MAIL_USERNAME else "noreply@example.com"
 
     if not MAIL_USERNAME or not MAIL_PASSWORD:
-        raise ValueError("❌ MAIL_USERNAME or MAIL_PASSWORD is missing! Please check your environment variables.")
+        print("⚠ Warning: MAIL_USERNAME or MAIL_PASSWORD is missing! Email notifications may not work.")
 
     # ─────────────────────────────────────────────────────────
     #  WebSocket (SocketIO) Settings
@@ -70,7 +74,7 @@ class Config:
     RAZORPAY_SECRET_KEY = os.getenv("RAZORPAY_SECRET_KEY")
 
     # ─────────────────────────────────────────────────────────
-    #  Celery Configuration
+    #  Celery Configuration (Using Render Redis)
     # ─────────────────────────────────────────────────────────
-    CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+    CELERY_BROKER_URL = REDIS_URL or "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND = REDIS_URL or "redis://localhost:6379/0"

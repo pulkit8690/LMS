@@ -4,7 +4,7 @@ import requests
 import random
 import time
 
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = "https://lms-8owp.onrender.com"
 
 # Admin Credentials
 ADMIN_EMAIL = "pulkitarora8690@gmail.com"
