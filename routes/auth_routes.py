@@ -38,21 +38,21 @@ def signup():
     name = data.get("name")
     email = data.get("email")
     password = data.get("password")
-
+    
     if not name or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
 
-    otp = str(random.randint(100000, 999999))  # ✅ Generate a raw 6-digit OTP
+    otp = str(random.randint(100000, 999999))  # ✅ Convert OTP to string
 
     user_otp = UserOTP.query.filter_by(email=email).first()
     if user_otp:
-        user_otp.otp = otp  # ✅ Store the raw OTP
+        user_otp.otp = otp  # ✅ Store OTP as plaintext
         user_otp.created_at = datetime.utcnow()
     else:
-        user_otp = UserOTP(email=email, otp=otp)  # ✅ Store raw OTP in DB
+        user_otp = UserOTP(email=email, otp=otp)  # ✅ Store OTP as plaintext
         db.session.add(user_otp)
 
     db.session.commit()
@@ -68,31 +68,28 @@ def signup():
 def verify_otp():
     data = request.json
     email = data.get("email")
-    otp = str(data.get("otp"))  # ✅ Ensure OTP is in string format
-    name = data.get("name")
-    password = data.get("password")
+    otp = str(data.get("otp"))
 
-    if not email or not otp or not name or not password:
+    if not email or not otp:
         return jsonify({"error": "All fields are required"}), 400
 
     user_otp = UserOTP.query.filter_by(email=email).first()
-    if not user_otp:
-        return jsonify({"error": "OTP expired or invalid"}), 400
+    if not user_otp or user_otp.otp != otp:  # ✅ Compare OTP directly
+        return jsonify({"error": "Invalid OTP!"}), 400
 
-    if user_otp.otp != otp:  # ✅ Compare raw OTP directly
-        return jsonify({"error": "Invalid OTP"}), 400
-
-    if User.query.filter_by(email=email).first():
+    user = User.query.filter_by(email=email).first()
+    if user:
         return jsonify({"error": "User already registered"}), 400
 
-    new_user = User(name=name, email=email, role="user", is_verified=True)
-    new_user.set_password(password)
+    new_user = User(name=data.get("name"), email=email, is_verified=True)
+    new_user.set_password(data.get("password"))
 
     db.session.add(new_user)
-    db.session.delete(user_otp)  # ✅ Remove OTP from DB after successful verification
+    db.session.delete(user_otp)
     db.session.commit()
 
     return jsonify({"message": "Email verified and account created successfully."}), 201
+
 
 
 # ✅ Login Route with Role-Based Authentication
