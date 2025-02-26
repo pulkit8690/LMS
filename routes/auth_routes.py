@@ -63,30 +63,34 @@ def signup():
     return jsonify({"message": "OTP sent to your email. Verify to complete registration."}), 201
 
 
-# ✅ Verify OTP & Create User
 @auth_bp.route("/verify_otp", methods=["POST"])
 def verify_otp():
     data = request.json
-    email = data.get("email")
-    otp = str(data.get("otp"))
-    name = data.get("name")
-    password = data.get("password")
+    email = data.get("email", "").strip()
+    otp = str(data.get("otp", "")).strip()
+    name = data.get("name", "").strip()
+    password = data.get("password", "").strip()
+
+    print(f"🔍 Received OTP Verification Request: Email={email}, OTP={otp}, Name={name}, Password={password}")
 
     if not email or not otp or not name or not password:
         return jsonify({"error": "All fields are required"}), 400
 
     user_otp = UserOTP.query.filter_by(email=email).first()
+    
     if not user_otp:
         return jsonify({"error": "OTP expired or not found. Request a new OTP."}), 400
 
-    if user_otp.otp != otp:
+    print(f"Stored OTP: {user_otp.otp if user_otp else None}, Received OTP: {otp}")
+
+    if user_otp.otp.strip() != otp:
         return jsonify({"error": "Invalid OTP!"}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "User already registered"}), 400
 
     new_user = User(name=name, email=email, is_verified=True)
-    
+
     if not password:
         return jsonify({"error": "Password is required"}), 400
 
@@ -97,6 +101,7 @@ def verify_otp():
     db.session.commit()
 
     return jsonify({"message": "Email verified and account created successfully."}), 201
+
 
 
 # ✅ Login Route with Role-Based Authentication
