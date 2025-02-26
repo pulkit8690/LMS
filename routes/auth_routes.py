@@ -1,6 +1,5 @@
 # routes/auth_routes.py
 from flask import Blueprint, request, jsonify, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -31,6 +30,7 @@ def send_otp(email, otp):
         current_app.logger.error(f"Error sending OTP: {e}")
         return False
 
+
 # ✅ Signup (Step 1: Send OTP)
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
@@ -38,21 +38,21 @@ def signup():
     name = data.get("name")
     email = data.get("email")
     password = data.get("password")
-    
+
     if not name or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
 
-    otp = str(random.randint(100000, 999999))  # ✅ Convert OTP to string
+    otp = str(random.randint(100000, 999999))  # ✅ Generate a 6-digit OTP as string
 
     user_otp = UserOTP.query.filter_by(email=email).first()
     if user_otp:
-        user_otp.otp = otp  # ✅ Store OTP as plaintext
+        user_otp.otp = otp  # ✅ Store OTP as plain text
         user_otp.created_at = datetime.utcnow()
     else:
-        user_otp = UserOTP(email=email, otp=otp)  # ✅ Store OTP as plaintext
+        user_otp = UserOTP(email=email, otp=otp)  # ✅ Store OTP as plain text
         db.session.add(user_otp)
 
     db.session.commit()
@@ -63,19 +63,23 @@ def signup():
     return jsonify({"message": "OTP sent to your email. Verify to complete registration."}), 201
 
 
+# ✅ Verify OTP & Create User
 @auth_bp.route("/verify_otp", methods=["POST"])
 def verify_otp():
     data = request.json
     email = data.get("email")
     otp = str(data.get("otp"))
     name = data.get("name")
-    password = data.get("password")  # ✅ Ensure password is present
+    password = data.get("password")
 
     if not email or not otp or not name or not password:
         return jsonify({"error": "All fields are required"}), 400
 
     user_otp = UserOTP.query.filter_by(email=email).first()
-    if not user_otp or user_otp.otp != otp:
+    if not user_otp:
+        return jsonify({"error": "OTP expired or not found. Request a new OTP."}), 400
+
+    if user_otp.otp != otp:
         return jsonify({"error": "Invalid OTP!"}), 400
 
     if User.query.filter_by(email=email).first():
@@ -83,18 +87,16 @@ def verify_otp():
 
     new_user = User(name=name, email=email, is_verified=True)
     
-    if not password:  # ✅ Prevent NoneType error
+    if not password:
         return jsonify({"error": "Password is required"}), 400
-    
-    new_user.set_password(password)  # ✅ Ensure password is not None before hashing
-    
+
+    new_user.set_password(password)
+
     db.session.add(new_user)
-    db.session.delete(user_otp)
+    db.session.delete(user_otp)  # ✅ Delete OTP after verification
     db.session.commit()
 
     return jsonify({"message": "Email verified and account created successfully."}), 201
-
-
 
 
 # ✅ Login Route with Role-Based Authentication
@@ -103,7 +105,7 @@ def login():
     data = request.json
     email = data.get("email")
     password = data.get("password")
-    role = data.get("role", "user").lower()  # Ensure role is handled properly
+    role = data.get("role", "user").lower()
 
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
@@ -122,6 +124,7 @@ def login():
         "user": {"id": user.id, "email": user.email, "role": user.role}
     }), 200
 
+
 # ✅ User Profile Route
 @auth_bp.route("/profile", methods=["GET"])
 @jwt_required()
@@ -139,6 +142,7 @@ def profile():
         "is_verified": user.is_verified
     }), 200
 
+
 # ✅ Forgot Password Route
 @auth_bp.route("/forgot_password", methods=["POST"])
 def forgot_password():
@@ -149,13 +153,14 @@ def forgot_password():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    otp = random.randint(100000, 999999)
+    otp = str(random.randint(100000, 999999))  # ✅ Generate a new OTP
+
     user_otp = UserOTP.query.filter_by(email=email).first()
     if user_otp:
-        user_otp.otp = generate_password_hash(str(otp))  # Hash OTP
+        user_otp.otp = otp  # ✅ Store OTP as plaintext
         user_otp.created_at = datetime.utcnow()
     else:
-        user_otp = UserOTP(email=email, otp=generate_password_hash(str(otp)))
+        user_otp = UserOTP(email=email, otp=otp)
         db.session.add(user_otp)
 
     db.session.commit()
@@ -164,6 +169,7 @@ def forgot_password():
         return jsonify({"error": "Error sending OTP"}), 500
 
     return jsonify({"message": "OTP sent to your email. Please verify to reset password."}), 200
+
 
 # ✅ Reset Password Route
 @auth_bp.route("/reset_password", methods=["POST"])
@@ -177,15 +183,18 @@ def reset_password():
         return jsonify({"error": "Password must be at least 6 characters long"}), 400
 
     user_otp = UserOTP.query.filter_by(email=email).first()
-    if not user_otp or not check_password_hash(user_otp.otp, otp):  # Compare hashed OTP
-        return jsonify({"error": "Invalid OTP"}), 400
+    if not user_otp:
+        return jsonify({"error": "OTP expired or not found"}), 400
+
+    if user_otp.otp != otp:
+        return jsonify({"error": "Invalid OTP!"}), 400
 
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"error": "User not found"}), 404
 
     user.set_password(new_password)
-    db.session.delete(user_otp)
+    db.session.delete(user_otp)  # ✅ Delete OTP after reset
     db.session.commit()
 
     return jsonify({"message": "Password reset successfully. You can now log in."}), 200
