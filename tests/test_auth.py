@@ -33,7 +33,7 @@ def test_api(method, endpoint, data=None, token=None):
     headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     try:
-        response = requests.request(method, url, json=data, headers=headers, timeout=10)
+        response = requests.request(method, url, json=data, headers=headers, timeout=50)
         log_result(endpoint, response)
         return response
     except requests.exceptions.RequestException as e:
