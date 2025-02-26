@@ -34,33 +34,50 @@ def send_otp(email, otp):
 # ✅ Signup (Step 1: Send OTP)
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
-    data = request.json
-    name = data.get("name")
-    email = data.get("email")
-    password = data.get("password")
+    try:
+        data = request.json
+        print("📥 Received Signup Request:", data)  # ✅ Debugging Log
 
-    if not name or not email or not password:
-        return jsonify({"error": "All fields are required"}), 400
+        # Trim input fields to remove spaces
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip()
+        password = data.get("password", "").strip()
 
-    if User.query.filter_by(email=email).first():
-        return jsonify({"error": "Email already exists"}), 400
+        # ✅ Validate input fields
+        if not name or not email or not password:
+            return jsonify({"error": "All fields are required"}), 400
 
-    otp = str(random.randint(100000, 999999))  # ✅ Generate a 6-digit OTP as string
+        # ✅ Check if email already exists
+        if User.query.filter_by(email=email).first():
+            return jsonify({"error": "Email already exists"}), 400
 
-    user_otp = UserOTP.query.filter_by(email=email).first()
-    if user_otp:
-        user_otp.otp = otp  # ✅ Store OTP as plain text
-        user_otp.created_at = datetime.utcnow()
-    else:
-        user_otp = UserOTP(email=email, otp=otp)  # ✅ Store OTP as plain text
-        db.session.add(user_otp)
+        # ✅ Generate a 6-digit OTP
+        otp = str(random.randint(100000, 999999))
 
-    db.session.commit()
+        # ✅ Check if OTP already exists
+        user_otp = UserOTP.query.filter_by(email=email).first()
+        if user_otp:
+            user_otp.otp = otp  # ✅ Update OTP
+            user_otp.created_at = datetime.utcnow()
+        else:
+            user_otp = UserOTP(email=email, otp=otp)  # ✅ Insert OTP
+            db.session.add(user_otp)
 
-    if not send_otp(email, otp):
-        return jsonify({"error": "Error sending OTP"}), 500
+        db.session.commit()
+        print(f"✅ OTP {otp} generated for {email}")  # ✅ Debugging Log
 
-    return jsonify({"message": "OTP sent to your email. Verify to complete registration."}), 201
+        # ✅ Send OTP via email
+        if not send_otp(email, otp):
+            db.session.rollback()  # Rollback in case of email failure
+            return jsonify({"error": "Error sending OTP"}), 500
+
+        return jsonify({"message": "OTP sent to your email. Verify to complete registration."}), 201
+
+    except Exception as e:
+        db.session.rollback()  # Ensure rollback on failure
+        print("❌ Signup Error:", str(e))  # ✅ Debugging Log
+        return jsonify({"error": "An unexpected error occurred!"}), 500
+
 
 
 
