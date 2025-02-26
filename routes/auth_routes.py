@@ -38,13 +38,16 @@ def signup():
     name = data.get("name")
     email = data.get("email")
     password = data.get("password")
-    role = data.get("role", "user")
+    role = data.get("role", "user").lower()  # Normalize role to lowercase
 
     if not name or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
+
+    if role not in ["user", "admin"]:
+        return jsonify({"error": "Invalid role. Choose 'user' or 'admin'"}), 400
 
     otp = random.randint(100000, 999999)
 
@@ -71,7 +74,7 @@ def verify_otp():
     otp = str(data.get("otp"))
     name = data.get("name")
     password = data.get("password")
-    role = data.get("role", "user")
+    role = data.get("role", "user").lower()
 
     if not email or not otp or not name or not password:
         return jsonify({"error": "All fields are required"}), 400
@@ -92,44 +95,30 @@ def verify_otp():
 
     return jsonify({"message": "Email verified and account created successfully."}), 201
 
-# ✅ Login Route
+# ✅ Login Route with Role-Based Authentication
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.json
     email = data.get("email")
     password = data.get("password")
+    role = data.get("role", "user").lower()  # Ensure role is handled properly
 
     user = User.query.filter_by(email=email).first()
-    if not user or not user.check_password(password):  # Compare hashed password
-        return jsonify({"error": "Invalid credentials"}), 401
+    if not user or not user.check_password(password):
+        return jsonify({"error": "Invalid credentials!"}), 401
+
+    # ✅ Ensure the role matches
+    if user.role != role:
+        return jsonify({"error": "Unauthorized role selection!"}), 403
 
     access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=1))
     refresh_token = create_refresh_token(identity=str(user.id))
 
-    return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
-
-# ✅ Verify Login OTP (For Multi-Factor Authentication)
-@auth_bp.route("/verify_login_otp", methods=["POST"])
-def verify_login_otp():
-    data = request.json
-    email = data.get("email")
-    otp = data.get("otp")
-
-    user_otp = UserOTP.query.filter_by(email=email).first()
-    if not user_otp or not check_password_hash(user_otp.otp, str(otp)):
-        return jsonify({"error": "Invalid OTP"}), 400
-
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    db.session.delete(user_otp)
-    db.session.commit()
-
-    access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=1))
-    refresh_token = create_refresh_token(identity=str(user.id))
-
-    return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": {"id": user.id, "email": user.email, "role": user.role}
+    }), 200
 
 # ✅ User Profile Route
 @auth_bp.route("/profile", methods=["GET"])
