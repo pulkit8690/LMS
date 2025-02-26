@@ -72,7 +72,7 @@ def verify_otp():
     name = data.get("name", "").strip()
     password = data.get("password", "").strip()
 
-    print(f"🔍 Received OTP Verification Request: Email={email}, OTP={otp}, Name={name}, Password={password}")
+    print(f"🔍 OTP Verification Request: Email={email}, OTP={otp}, Name={name}, Password={password}")
 
     if not email or not otp or not name or not password:
         return jsonify({"error": "All fields are required"}), 400
@@ -82,7 +82,7 @@ def verify_otp():
     if not user_otp:
         return jsonify({"error": "OTP expired or not found. Request a new OTP."}), 400
 
-    print(f"Stored OTP: {user_otp.otp if user_otp else None}, Received OTP: {otp}")
+    print(f"🔎 Stored OTP: {user_otp.otp}, Received OTP: {otp}")
 
     if user_otp.otp.strip() != otp:
         return jsonify({"error": "Invalid OTP!"}), 400
@@ -91,21 +91,21 @@ def verify_otp():
         return jsonify({"error": "User already registered"}), 400
 
     new_user = User(name=name, email=email, is_verified=True)
-
+    
     if not password:
         return jsonify({"error": "Password is required"}), 400
 
     new_user.set_password(password)
 
     db.session.add(new_user)
-    db.session.delete(user_otp)  # ✅ Delete OTP after verification
+    db.session.delete(user_otp)
     db.session.commit()
 
-    # ✅ Generate JWT Tokens after OTP Verification
+    # ✅ Generate JWT Tokens
     access_token = create_access_token(identity=str(new_user.id), expires_delta=timedelta(days=1))
     refresh_token = create_refresh_token(identity=str(new_user.id))
 
-    return jsonify({
+    response_data = {
         "message": "Email verified and account created successfully.",
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -114,7 +114,11 @@ def verify_otp():
             "email": new_user.email,
             "name": new_user.name
         }
-    }), 201
+    }
+
+    print(f"✅ Returning response: {response_data}")  # ✅ Debugging
+
+    return jsonify(response_data), 201
 
 
 
