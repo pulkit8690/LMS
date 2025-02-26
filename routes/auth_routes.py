@@ -63,6 +63,7 @@ def signup():
     return jsonify({"message": "OTP sent to your email. Verify to complete registration."}), 201
 
 
+
 @auth_bp.route("/verify_otp", methods=["POST"])
 def verify_otp():
     data = request.json
@@ -100,7 +101,20 @@ def verify_otp():
     db.session.delete(user_otp)  # ✅ Delete OTP after verification
     db.session.commit()
 
-    return jsonify({"message": "Email verified and account created successfully."}), 201
+    # ✅ Generate JWT Tokens after OTP Verification
+    access_token = create_access_token(identity=str(new_user.id), expires_delta=timedelta(days=1))
+    refresh_token = create_refresh_token(identity=str(new_user.id))
+
+    return jsonify({
+        "message": "Email verified and account created successfully.",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": {
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": new_user.name
+        }
+    }), 201
 
 
 
