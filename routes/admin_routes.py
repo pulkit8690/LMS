@@ -28,6 +28,21 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+# ✅ Get Dashboard Stats
+@admin_bp.route("/stats", methods=["GET"])
+@admin_required
+def get_admin_stats():
+    """Returns Total Users, Borrowed Books, and Returned Books"""
+    total_users = db.session.query(User).count()
+    borrowed_books = db.session.query(BorrowedBook).filter_by(returned=False).count()
+    returned_books = db.session.query(BorrowedBook).filter_by(returned=True).count()
+
+    return jsonify({
+        "total_users": total_users,
+        "borrowed_books": borrowed_books,
+        "returned_books": returned_books
+    }), 200
+
 # ✅ Get All Books
 @admin_bp.route("/books", methods=["GET"])
 @admin_required
@@ -46,6 +61,7 @@ def get_books():
     ]
     return jsonify(books_list), 200
 
+# ✅ Add a Book
 @admin_bp.route("/books/add", methods=["POST"])
 @admin_required
 def add_book():
@@ -59,9 +75,7 @@ def add_book():
     if not title or not author or not isbn or not category_id:
         return jsonify({"error": "All fields are required"}), 400
 
-    # ✅ Call the service method
     response, status_code = BookService.add_book(title, author, isbn, category_id, copies_available)
-
     return jsonify(response), status_code
 
 
@@ -93,7 +107,6 @@ def delete_book(book_id):
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    # Delete all reservations before deleting the book
     ReservedBook.query.filter_by(book_id=book_id).delete()
 
     db.session.delete(book)
@@ -115,6 +128,7 @@ def get_students():
         for student in students
     ]
     return jsonify(students_list), 200
+
 
 # ✅ Block/Unblock Student
 @admin_bp.route("/students/block/<int:student_id>", methods=["PUT"])
@@ -235,6 +249,7 @@ def manage_extension():
 @admin_bp.route("/reports", methods=["GET"])
 @admin_required
 def generate_reports():
+    """Generate Admin Dashboard Reports"""
     total_books = db.session.query(func.count(Book.id)).scalar()
     total_students = db.session.query(func.count(User.id)).filter(User.role == "user").scalar()
     borrowed_books = db.session.query(func.count(BorrowedBook.id)).filter(BorrowedBook.returned == False).scalar()
