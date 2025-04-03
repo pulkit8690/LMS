@@ -3,7 +3,7 @@
 import requests
 import random
 
-BASE_URL = "https://lms-8owp.onrender.com"  # Change for production
+BASE_URL = "https://lms-backend-production-9c55.up.railway.app"  # Change for production
 
 # Admin Credentials
 ADMIN_EMAIL = "pulkitarora8690@gmail.com"
