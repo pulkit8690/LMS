@@ -3,7 +3,7 @@
 import requests
 import random
 
-BASE_URL = "http://localhost:5000"  # Change for production
+BASE_URL = "https://lms-8owp.onrender.com"  # Change for production
 
 # Admin Credentials
 ADMIN_EMAIL = "pulkitarora8690@gmail.com"
